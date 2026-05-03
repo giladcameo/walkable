@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Berlin Transit Live</title>
+  <link rel="preconnect" href="https://unpkg.com"/>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <style>
+    :root{
+      --bg:rgba(13,17,23,.93);--surface:rgba(22,27,34,.95);--surface2:rgba(33,38,45,.95);
+      --border:rgba(48,54,61,.8);--text:#e6edf3;--muted:#8b949e;--accent:#58a6ff;
+      --green:#3fb950;--yellow:#d29922;--red:#f85149;
+      --map-bg:#1a1f2e;
+    }
+    [data-theme="light"]{
+      --bg:rgba(248,250,252,.95);--surface:rgba(255,255,255,.97);--surface2:rgba(241,245,249,.97);
+      --border:rgba(203,213,225,.8);--text:#1e293b;--muted:#64748b;--accent:#2563eb;
+      --green:#16a34a;--yellow:#d97706;--red:#dc2626;
+      --map-bg:#e8edf2;
+    }
+    *{box-sizing:border-box;margin:0;padding:0}
+    html,body{height:100%;width:100%;overflow:hidden;
+      font-family:'Segoe UI',system-ui,sans-serif;font-size:13px;color:var(--text)}
+
+    /* MAP fills entire viewport */
+    #map{position:fixed;inset:0;z-index:0;background:#0d1117}
+
+    /* HEADER — floating bar at top */
+    header{
+      position:fixed;top:0;left:0;right:0;height:46px;z-index:500;
+      background:var(--bg);backdrop-filter:blur(12px);
+      border-bottom:1px solid var(--border);
+      display:flex;align-items:center;gap:10px;padding:0 14px;
+    }
+    .logo-mark{background:#f5a800;color:#000;font-weight:900;font-size:13px;
+      width:28px;height:28px;border-radius:50%;display:flex;align-items:center;
+      justify-content:center;flex-shrink:0}
+    .logo-text{font-size:14px;font-weight:700}
+    .spacer{flex:1}
+    .clock{font-size:18px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--accent)}
+    .pulse-wrap{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--muted)}
+    .pulse{width:6px;height:6px;background:var(--green);border-radius:50%;animation:pulse 2s infinite}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.2}}
+
+    /* FILTER BAR — floating top-right */
+    .filter-bar{
+      position:fixed;top:56px;right:10px;z-index:400;
+      display:flex;gap:5px;flex-wrap:wrap;max-width:320px;justify-content:flex-end;
+    }
+    .fc{display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;
+      border:1px solid var(--border);cursor:pointer;font-size:11px;font-weight:700;
+      background:var(--surface);color:var(--muted);transition:all .15s;user-select:none;
+      backdrop-filter:blur(8px)}
+    .fc.on{color:#000 !important;border-color:transparent}
+    .fc.off{opacity:.45}
+
+    /* SIDE PANEL — floating left */
+    .panel{
+      position:fixed;top:56px;left:10px;bottom:10px;width:320px;z-index:400;
+      background:var(--surface);backdrop-filter:blur(14px);
+      border:1px solid var(--border);border-radius:12px;
+      display:flex;flex-direction:column;overflow:hidden;
+    }
+
+    /* Search inside panel */
+    .search-wrap{position:relative;padding:8px 10px;border-bottom:1px solid var(--border)}
+    .search-wrap input{width:100%;background:var(--surface2);border:1px solid var(--border);
+      color:var(--text);padding:6px 34px 6px 30px;border-radius:7px;font-size:12px;outline:none}
+    .search-wrap input:focus{border-color:var(--accent)}
+    .locate-btn{position:absolute;right:19px;top:50%;transform:translateY(-50%);
+      background:none;border:none;cursor:pointer;color:var(--muted);padding:2px;
+      display:flex;align-items:center;transition:color .15s}
+    .locate-btn:hover{color:var(--accent)}
+    .locate-btn.locating{color:var(--accent);animation:pulse 1s infinite}
+    .s-icon{position:absolute;left:19px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none}
+    .search-results{position:absolute;top:calc(100% - 8px);left:10px;right:10px;
+      background:var(--surface2);border:1px solid var(--border);border-radius:8px;
+      z-index:9999;max-height:200px;overflow-y:auto;display:none}
+    .search-results.open{display:block}
+    .sr-item{padding:8px 11px;cursor:pointer;border-bottom:1px solid var(--border)}
+    .sr-item:last-child{border-bottom:none}
+    .sr-item:hover{background:var(--surface)}
+    .sr-name{font-weight:600;font-size:12px}
+    .sr-sub{font-size:10px;color:var(--muted)}
+
+    /* Station header */
+    .stn-hdr{padding:8px 12px;border-bottom:1px solid var(--border)}
+    .stn-name{font-size:14px;font-weight:800;color:var(--accent);white-space:nowrap;
+      overflow:hidden;text-overflow:ellipsis}
+    .stn-meta{font-size:10px;color:var(--muted);margin-top:1px}
+    .tabs{display:flex;gap:3px;margin-top:6px}
+    .tab-btn{padding:3px 10px;border-radius:5px;border:1px solid transparent;
+      background:transparent;color:var(--muted);cursor:pointer;font-size:11px}
+    .tab-btn.active{background:var(--surface2);border-color:var(--border);color:var(--text)}
+
+    /* Board */
+    .board{flex:1;overflow-y:auto;padding:6px 8px}
+    .board::-webkit-scrollbar{width:4px}
+    .board::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+
+    /* Compact departure rows */
+    .dep-row{display:flex;align-items:center;gap:6px;padding:5px 6px;border-radius:6px;
+      cursor:default;transition:background .12s}
+    .dep-row:hover{background:var(--surface2)}
+    .line-badge{display:inline-flex;align-items:center;justify-content:center;
+      min-width:34px;padding:2px 5px;border-radius:4px;font-weight:800;font-size:11px;
+      flex-shrink:0}
+    .dep-dest{flex:1;font-size:11px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .dep-time{font-size:12px;font-weight:700;font-variant-numeric:tabular-nums;flex-shrink:0;text-align:right}
+    .dep-delay{font-size:9px;margin-left:2px}
+    .dep-delay.late{color:var(--red)}.dep-delay.ok{color:var(--green)}
+    .countdown{display:inline-block;padding:1px 6px;border-radius:20px;font-size:10px;font-weight:700;flex-shrink:0}
+    .cnt-now{background:var(--red);color:#fff}
+    .cnt-soon{background:var(--yellow);color:#000}
+    .cnt-later{background:rgba(139,148,158,.15);color:var(--muted)}
+
+    /* States */
+    .state-box{display:flex;flex-direction:column;align-items:center;justify-content:center;
+      gap:8px;padding:30px 16px;text-align:center;color:var(--muted);font-size:12px}
+    .spinner{width:24px;height:24px;border:2px solid var(--border);
+      border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    /* Vehicle labels on map */
+    .veh-icon{pointer-events:auto}
+    .veh-icon span{display:inline-block;padding:1px 5px;border-radius:3px;
+      font-size:9px;font-weight:800;white-space:nowrap;cursor:pointer;
+      box-shadow:0 1px 4px rgba(0,0,0,.6)}
+
+    .leaflet-container{background:var(--map-bg)}
+    .leaflet-control-zoom a{background:var(--surface) !important;color:var(--text) !important;
+      border-color:var(--border) !important}
+
+    /* Theme toggle button */
+    .theme-btn{background:none;border:1px solid var(--border);color:var(--text);
+      border-radius:8px;padding:3px 8px;cursor:pointer;font-size:15px;line-height:1;
+      display:flex;align-items:center;}
+
+    /* Debug badge */
+    #debugBadge{position:fixed;bottom:10px;right:10px;z-index:500;
+      background:var(--surface);border:1px solid var(--border);border-radius:8px;
+      padding:6px 10px;font-size:10px;color:var(--muted);line-height:1.6;
+      max-width:200px;backdrop-filter:blur(8px)}
+
+    /* ── MOBILE ── */
+    @media(max-width:768px){
+      /* Header compact */
+      header{height:44px;padding:0 12px}
+      .logo-text{font-size:13px}
+      .clock{font-size:16px}
+
+      /* Filters: full-width strip under header, horizontal scroll */
+      .filter-bar{
+        top:44px;left:0;right:0;max-width:100%;
+        padding:6px 10px;gap:6px;flex-wrap:nowrap;
+        overflow-x:auto;justify-content:flex-start;
+        background:var(--bg);backdrop-filter:blur(12px);
+        border-bottom:1px solid var(--border);
+        -webkit-overflow-scrolling:touch;
+        scrollbar-width:none;
+      }
+      .filter-bar::-webkit-scrollbar{display:none}
+      .fc{font-size:12px;padding:5px 14px;flex-shrink:0}
+
+      /* Panel: bottom sheet */
+      .panel{
+        top:auto;left:0;right:0;width:100%;
+        bottom:0;height:52%;
+        border-radius:16px 16px 0 0;
+        border-left:none;border-right:none;border-bottom:none;
+        transition:height .3s cubic-bezier(.4,0,.2,1);
+      }
+      .panel.collapsed{height:56px}
+      .panel.expanded{height:85%}
+
+      /* Drag handle */
+      .panel-handle{
+        display:flex;justify-content:center;align-items:center;
+        padding:10px 0 6px;cursor:pointer;flex-shrink:0;
+      }
+      .panel-handle-bar{
+        width:36px;height:4px;background:var(--border);border-radius:2px;
+      }
+
+      /* Larger touch targets for tabs */
+      .tab-btn{padding:6px 14px;font-size:12px}
+      .dep-row{padding:8px 6px}
+      .line-badge{min-width:38px;font-size:12px;padding:3px 6px}
+      .dep-dest{font-size:12px}
+      .dep-time{font-size:13px}
+      .countdown{font-size:11px;padding:2px 8px}
+
+      /* Debug badge: move above panel */
+      #debugBadge{bottom:calc(52% + 8px);right:8px}
+    }
+  </style>
+</head>
+<body>
+
+<!-- Full-screen map -->
+<div id="map"></div>
+<div id="debugBadge">Radar: warte…</div>
+
+<!-- Header -->
+<header>
+  <div class="logo-mark">BVG</div>
+  <div class="logo-text">Berlin Transit Live</div>
+  <div class="spacer"></div>
+  <div class="clock" id="clock">--:--:--</div>
+  <div class="pulse-wrap"><div class="pulse"></div><span>10s</span></div>
+  <button class="theme-btn" id="themeBtn" onclick="toggleTheme()" title="Toggle theme">🌙</button>
+</header>
+
+<!-- Filter chips (top-right) -->
+<div class="filter-bar" id="filterBar"></div>
+
+<!-- Side panel -->
+<div class="panel" id="panel">
+  <!-- Mobile drag handle -->
+  <div class="panel-handle" id="panelHandle" onclick="togglePanel()">
+    <div class="panel-handle-bar"></div>
+  </div>
+
+  <div class="search-wrap">
+    <svg class="s-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+    <input id="searchInput" type="text" placeholder="Station suchen…" autocomplete="off"/>
+    <button class="locate-btn" id="locateBtn" onclick="locateMe()" title="Nearest station">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <circle cx="12" cy="12" r="3"/><path d="M12 2v3m0 14v3M2 12h3m14 0h3"/>
+        <circle cx="12" cy="12" r="9" stroke-dasharray="3 3"/>
+      </svg>
+    </button>
+    <div class="search-results" id="searchResults"></div>
+  </div>
+
+  <div class="stn-hdr">
+    <div class="stn-name" id="stationName">Berlin Hauptbahnhof</div>
+    <div class="stn-meta" id="stationMeta"></div>
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('departures')">Abfahrt</button>
+      <button class="tab-btn" onclick="switchTab('arrivals')">Ankunft</button>
+    </div>
+  </div>
+
+  <div class="board" id="board">
+    <div class="state-box"><div class="spinner"></div>Lade Echtzeit…</div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const API    = 'https://v6.vbb.transport.rest'; // U-Bahn + departures board
+const API_DB = 'https://v6.db.transport.rest';  // S-Bahn (DB-operated, cleaner radar)
+const REFRESH_MS = 10000;
+
+
+const FILTER_DEFS = [
+  {key:'subway',   label:'U-Bahn', bg:'#224f9e', fg:'#fff'},
+  {key:'suburban', label:'S-Bahn', bg:'#007734', fg:'#fff'},
+  {key:'ferry',    label:'Fähre',  bg:'#0a5f98', fg:'#fff'},
+];
+
+const LINE_COLORS = {
+  U1:'#55a822',U2:'#dd6e14',U3:'#16683d',U4:'#f0d722',
+  U5:'#7d4427',U6:'#8b5ca3',U7:'#528dba',U8:'#224f9e',U9:'#f7931e',
+  S1:'#da6ba2',S2:'#007734',S3:'#0a5f98',S5:'#ef7c00',
+  S7:'#775e38',S8:'#55a822',S9:'#990000',S25:'#007734',
+  S41:'#ab2626',S42:'#cb6418',S45:'#c97a2f',S46:'#c97a2f',S47:'#c97a2f',
+};
+const DARK_FG = new Set(['U4','S5','S7','S8','S25']);
+
+// State
+let stationId = '900003201', stationName = 'Berlin Hauptbahnhof';
+let tab = 'departures';
+let filters = Object.fromEntries(FILTER_DEFS.map(f=>[f.key,true]));
+let activeTripIds = new Set(); // trip IDs from latest departures/arrivals fetch
+let polylineCache = {};       // tripId → GeoJSON (persists across refreshes)
+let activeRouteLayer = null;
+let activeRouteTripId = null;
+let depAbort=null, radarAbort=null, refreshTimer=null, searchTimer=null;
+let map, tileLayer, stationMarker=null, vehicleMarkers={};
+let isDark = true;
+
+/* ── CLOCK ── */
+setInterval(()=>{
+  document.getElementById('clock').textContent =
+    new Date().toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+},1000);
+
+/* ── MAP ── */
+const TILES = {
+  dark:  'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+  light: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+};
+
+function initMap(){
+  map = L.map('map',{zoomControl:true}).setView([52.52,13.405],12);
+  tileLayer = L.tileLayer(TILES.dark,{
+    attribution:'&copy; OSM &copy; CARTO',subdomains:'abcd',maxZoom:19
+  }).addTo(map);
+}
+
+function toggleTheme(){
+  isDark = !isDark;
+  document.documentElement.setAttribute('data-theme', isDark ? '' : 'light');
+  tileLayer.setUrl(isDark ? TILES.dark : TILES.light);
+  document.getElementById('themeBtn').textContent = isDark ? '🌙' : '☀️';
+}
+
+function setStationMarker(lat,lon,name){
+  if(stationMarker) stationMarker.remove();
+  stationMarker = L.circleMarker([lat,lon],{
+    radius:9,color:'#58a6ff',fillColor:'#58a6ff',fillOpacity:.4,weight:2,zIndexOffset:1000
+  }).addTo(map).bindTooltip(`<b>${name}</b>`,{direction:'right'});
+  map.setView([lat,lon],Math.max(map.getZoom(),13),{animate:true,duration:.5});
+}
+
+function productBg(p){
+  return {subway:'#224f9e',suburban:'#007734',bus:'#6e3fa3',
+          tram:'#cc2222',regional:'#ef7c00',ferry:'#0a5f98'}[p]||'#444';
+}
+
+/* ── ROUTE POLYLINE ── */
+async function showRoute(tripId, line){
+  // Toggle off if same marker clicked again
+  if(activeRouteTripId===tripId){
+    if(activeRouteLayer){activeRouteLayer.remove();activeRouteLayer=null;}
+    activeRouteTripId=null;
+    return;
+  }
+  if(activeRouteLayer){activeRouteLayer.remove();activeRouteLayer=null;}
+  activeRouteTripId=tripId;
+
+  let latlngs=polylineCache[tripId];
+  if(!latlngs){
+    try{
+      const r=await fetch(
+        `${API}/trips/${encodeURIComponent(tripId)}?stopovers=true&remarks=false&polyline=true`
+      );
+      if(!r.ok) throw new Error(r.status);
+      const d=await r.json();
+      const t=d.trip||d;
+
+      // Normalise the various shapes hafas-rest can return
+      const raw=t?.polyline;
+      if(raw){
+        // GeoJSON FeatureCollection  → extract first LineString coordinates
+        if(raw.type==='FeatureCollection'){
+          const feat=raw.features?.find(f=>f.geometry?.type==='LineString');
+          if(feat) latlngs=feat.geometry.coordinates.map(([lng,lat])=>[lat,lng]);
+        }
+        // GeoJSON Feature
+        else if(raw.type==='Feature'&&raw.geometry?.type==='LineString'){
+          latlngs=raw.geometry.coordinates.map(([lng,lat])=>[lat,lng]);
+        }
+        // GeoJSON LineString
+        else if(raw.type==='LineString'){
+          latlngs=raw.coordinates.map(([lng,lat])=>[lat,lng]);
+        }
+        // hafas-client array of {latitude, longitude} objects
+        else if(Array.isArray(raw)){
+          latlngs=raw.map(p=>p.latitude!=null?[p.latitude,p.longitude]:[p[1],p[0]]);
+        }
+      }
+      // Fallback: connect stopovers in order
+      if(!latlngs?.length && t?.stopovers){
+        latlngs=t.stopovers
+          .map(s=>s.stop?.location)
+          .filter(l=>l?.latitude)
+          .map(l=>[l.latitude,l.longitude]);
+      }
+      if(latlngs?.length) polylineCache[tripId]=latlngs;
+    }catch(e){console.warn('route fetch failed',e);}
+  }
+  if(!latlngs?.length||activeRouteTripId!==tripId) return;
+
+  const n=line?.name||'?';
+  const color=LINE_COLORS[n]||productBg(line?.product)||'#58a6ff';
+  // Draw a subtle shadow line then the coloured line on top
+  const shadow=L.polyline(latlngs,{color:'#000',weight:7,opacity:.25,lineCap:'round',lineJoin:'round'}).addTo(map);
+  const route=L.polyline(latlngs,{color,weight:4,opacity:.9,lineCap:'round',lineJoin:'round'}).addTo(map);
+  shadow.bringToBack(); route.bringToBack();
+  // Store both so we can remove them together
+  activeRouteLayer={remove:()=>{shadow.remove();route.remove()}};
+}
+
+function clearRoute(){
+  if(activeRouteLayer){activeRouteLayer.remove();activeRouteLayer=null;}
+  activeRouteTripId=null;
+}
+
+function updateVehicles(movements){
+  const seen=new Set();
+  const displayed=(movements||[]).filter(m=>filters[m.line?.product]).length;
+  const sLines={};
+  (movements||[]).filter(m=>m.line?.product==='suburban').forEach(m=>{
+    const n=m.line.name||'?'; sLines[n]=(sLines[n]||0)+1;
+  });
+  const sDetail=Object.keys(sLines).sort().join(' ')||'—';
+  document.getElementById('debugBadge').innerHTML=
+    `<b>On map: ${displayed}</b> (S: ${sDetail})`;
+
+  (movements||[]).forEach(m=>{
+    if(!m.line||!m.location) return;
+    const prod=m.line.product;
+    if(!filters[prod]) return;
+    const id=m.tripId||(m.line.name+m.direction);
+    const {latitude:lat,longitude:lon}=m.location;
+    const n=m.line.name||'?';
+    const bg=LINE_COLORS[n]||productBg(prod);
+    const fg=DARK_FG.has(n)?'#000':'#fff';
+    seen.add(id);
+    if(vehicleMarkers[id]){
+      vehicleMarkers[id].setLatLng([lat,lon]);
+    } else {
+      const icon=L.divIcon({
+        className:'veh-icon',
+        html:`<span style="background:${bg};color:${fg}">${n}</span>`,
+        iconAnchor:[15,8]
+      });
+      const line=m.line;
+      vehicleMarkers[id]=L.marker([lat,lon],{icon,zIndexOffset:0})
+        .addTo(map)
+        .bindTooltip(`${n}${m.direction?' → '+m.direction:''}`,{sticky:true})
+        .on('click',()=>showRoute(id,line));
+    }
+  });
+  Object.keys(vehicleMarkers).forEach(id=>{
+    if(!seen.has(id)){vehicleMarkers[id].remove();delete vehicleMarkers[id];}
+  });
+}
+
+/* ── FILTERS ── */
+function renderFilters(){
+  document.getElementById('filterBar').innerHTML = FILTER_DEFS.map(f=>{
+    const on=filters[f.key];
+    return `<div class="fc ${on?'on':'off'}"
+      style="${on?`background:${f.bg};color:${f.fg}`:''}"
+      onclick="toggleFilter('${f.key}')">${f.label}</div>`;
+  }).join('');
+}
+function toggleFilter(key){
+  filters[key]=!filters[key];
+  renderFilters();
+  // hide/show existing markers immediately
+  Object.entries(vehicleMarkers).forEach(([id,mk])=>{
+    const el=mk.getElement();
+    if(el) el.style.display='block'; // will be corrected on next radar update
+  });
+  loadAll();
+}
+
+
+/* ── SEARCH ── */
+const searchInput=document.getElementById('searchInput');
+const searchResults=document.getElementById('searchResults');
+searchInput.addEventListener('input',()=>{
+  clearTimeout(searchTimer);
+  const q=searchInput.value.trim();
+  if(q.length<2){searchResults.classList.remove('open');return;}
+  searchTimer=setTimeout(()=>doSearch(q),300);
+});
+document.addEventListener('click',e=>{
+  if(!e.target.closest('.search-wrap')) searchResults.classList.remove('open');
+});
+async function doSearch(q){
+  try{
+    const r=await fetch(`${API}/locations?query=${encodeURIComponent(q)}&results=7&stops=true&addresses=false&poi=false`);
+    const data=await r.json();
+    const stops=data.filter(d=>d.type==='stop');
+    searchResults.innerHTML=stops.length
+      ? stops.map(s=>`<div class="sr-item" onclick="loadStation('${s.id}','${s.name}');searchInput.value='';searchResults.classList.remove('open')">
+          <div class="sr-name">${s.name}</div>
+          <div class="sr-sub">${Object.keys(s.products||{}).filter(k=>s.products[k]).join(' · ')}</div>
+        </div>`).join('')
+      : '<div class="sr-item"><span style="color:var(--muted)">Keine Ergebnisse</span></div>';
+    searchResults.classList.add('open');
+  }catch{}
+}
+
+/* ── LOCATE ME ── */
+let userMarker=null;
+async function locateMe(){
+  if(!navigator.geolocation)
+    return alert('Geolocation not supported by this browser.');
+  const btn=document.getElementById('locateBtn');
+  btn.classList.add('locating');
+  navigator.geolocation.getCurrentPosition(async pos=>{
+    btn.classList.remove('locating');
+    const {latitude:lat,longitude:lon}=pos.coords;
+
+    // Show user's position on map
+    if(userMarker) userMarker.remove();
+    userMarker=L.circleMarker([lat,lon],{
+      radius:8,color:'#fff',fillColor:'#58a6ff',fillOpacity:.9,weight:2,zIndexOffset:2000
+    }).addTo(map).bindTooltip('You',{permanent:false});
+    map.setView([lat,lon],14,{animate:true,duration:.6});
+
+    // Find nearest subway/suburban stop
+    try{
+      const r=await fetch(
+        `${API}/stops/nearby?latitude=${lat}&longitude=${lon}&results=8&distance=2000&suburban=true&subway=true&bus=false&tram=false&regional=false`
+      );
+      const stops=await r.json();
+      const s=stops[0];
+      if(s) loadStation(s.id, s.name);
+    }catch(e){
+      alert('Could not find nearby station: '+e.message);
+    }
+  }, err=>{
+    btn.classList.remove('locating');
+    if(err.code===1) alert('Location access denied. Please allow location in your browser settings.');
+    else alert('Could not get location: '+err.message);
+  },{timeout:10000});
+}
+
+/* ── HELPERS ── */
+function lineBadge(line){
+  if(!line) return '<span class="line-badge" style="background:#333;color:#fff">?</span>';
+  const n=line.name||'?';
+  const bg=LINE_COLORS[n]||productBg(line.product)||'#444';
+  const fg=DARK_FG.has(n)?'#000':'#fff';
+  return `<span class="line-badge" style="background:${bg};color:${fg}">${n}</span>`;
+}
+function fmtTime(iso){
+  if(!iso) return '—';
+  return new Date(iso).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
+}
+function minsUntil(iso){
+  if(!iso) return null;
+  return Math.round((new Date(iso)-Date.now())/60000);
+}
+function cdChip(m){
+  if(m===null) return '';
+  if(m<=0)  return `<span class="countdown cnt-now">Jetzt</span>`;
+  if(m<=5)  return `<span class="countdown cnt-soon">${m}'</span>`;
+  return `<span class="countdown cnt-later">${m}'</span>`;
+}
+function delaySpan(pl,ac){
+  if(!pl||!ac) return '';
+  const d=Math.round((new Date(ac)-new Date(pl))/60000);
+  if(d>1)  return `<span class="dep-delay late">+${d}'</span>`;
+  if(d<=0) return `<span class="dep-delay ok">✓</span>`;
+  return '';
+}
+
+/* ── FETCH DEPS ── */
+async function fetchDeps(id,type){
+  if(depAbort) depAbort.abort();
+  depAbort=new AbortController();
+  const qs=FILTER_DEFS.map(f=>f.key+'='+(filters[f.key]?'true':'false')).join('&');
+  const ep=type==='departures'?'departures':'arrivals';
+  const res=await fetch(`${API}/stops/${id}/${ep}?duration=90&results=40&bus=false&tram=false&regional=false&express=false&nationalExpress=false&national=false&${qs}`,
+    {signal:depAbort.signal});
+  if(!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data=await res.json();
+  const deps=data[ep]||data;
+  // Save trip IDs so the radar can filter to only these vehicles
+  activeTripIds=new Set(deps.map(d=>d.tripId).filter(Boolean));
+  return deps;
+}
+
+function renderBoard(deps,type){
+  if(!deps.length)
+    return '<div class="state-box">Keine Abfahrten</div>';
+  return deps.slice(0,20).map(d=>{
+    const when=d.when||d.plannedWhen;
+    const dest=type==='departures'?(d.direction||'—'):(d.origin?.name||'—');
+    const mins=minsUntil(when);
+    return `<div class="dep-row">
+      ${lineBadge(d.line)}
+      <span class="dep-dest" title="${dest}">${dest}</span>
+      <span class="dep-time">${fmtTime(d.plannedWhen)}${delaySpan(d.plannedWhen,d.when)}</span>
+      ${cdChip(mins)}
+    </div>`;
+  }).join('');
+}
+
+/* ── FETCH VEHICLE POSITIONS via /trips/{id} ── */
+async function fetchRadar(){
+  if(radarAbort) radarAbort.abort();
+  radarAbort=new AbortController();
+  const sig={signal:radarAbort.signal};
+
+  const ids=[...activeTripIds].slice(0,40);
+  if(!ids.length){updateVehicles([]);return;}
+
+  // One request per trip — avoids bbox/bus-crowding entirely
+  const settled=await Promise.allSettled(
+    ids.map(id=>
+      fetch(`${API}/trips/${encodeURIComponent(id)}?stopovers=true&remarks=false`,sig)
+        .then(r=>r.ok?r.json():null).catch(()=>null)
+    )
+  );
+
+  const movements=settled.flatMap(r=>{
+    if(r.status!=='fulfilled'||!r.value) return [];
+    const t=r.value.trip||r.value;
+    // Prefer live GPS; fall back to interpolated position from stopovers
+    let loc=t?.currentLocation;
+    if(!loc?.latitude && t?.stopovers?.length){
+      const now=Date.now();
+      // Find the stopover the train just passed or is currently at
+      const past=t.stopovers.filter(s=>{
+        const dep=s.departure||s.plannedDeparture;
+        return dep && new Date(dep)<=now;
+      });
+      const ref=past.length?past[past.length-1]:t.stopovers[0];
+      if(ref?.stop?.location) loc=ref.stop.location;
+    }
+    if(!loc?.latitude) return [];
+    return [{tripId:t.id,line:t.line,direction:t.direction,location:loc}];
+  });
+
+  const sLines=[...new Set(
+    movements.filter(m=>m.line?.product==='suburban').map(m=>m.line?.name).filter(Boolean)
+  )].sort().join(' ');
+  const displayed=movements.filter(m=>filters[m.line?.product]).length;
+  document.getElementById('debugBadge').innerHTML=
+    `<b>${displayed}/${ids.length} located</b> (S: ${sLines||'—'})`;
+
+  updateVehicles(movements);
+}
+
+/* ── LOAD ALL ── */
+async function loadAll(){
+  clearTimeout(refreshTimer);
+  const board=document.getElementById('board');
+  // Deps first — populates activeTripIds used by radar
+  try{
+    const deps=await fetchDeps(stationId,tab);
+    board.innerHTML=renderBoard(deps,tab);
+  }catch(e){
+    if(e.name!=='AbortError'){
+      const cors=location.protocol==='file:';
+      board.innerHTML=cors
+        ?`<div class="state-box" style="color:var(--red)">CORS-Fehler.<br><small>Starte: <code>python3 -m http.server 8080</code></small></div>`
+        :`<div class="state-box" style="color:var(--red)">${e.message}</div>`;
+    }
+  }
+  await fetchRadar();
+  refreshTimer=setTimeout(loadAll,REFRESH_MS);
+}
+
+/* ── LOAD STATION ── */
+async function loadStation(id,name){
+  stationId=id; stationName=name;
+  document.getElementById('stationName').textContent=name;
+  document.getElementById('stationMeta').textContent=`Stop: ${id}`;
+  document.getElementById('board').innerHTML='<div class="state-box"><div class="spinner"></div>Lade…</div>';
+  clearRoute();
+  try{
+    const r=await fetch(`${API}/stops/${id}`);
+    const s=await r.json();
+    if(s.location) setStationMarker(s.location.latitude,s.location.longitude,name);
+  }catch{}
+  loadAll();
+}
+
+/* ── TAB ── */
+function switchTab(t){
+  tab=t;
+  document.querySelectorAll('.tab-btn').forEach((b,i)=>
+    b.classList.toggle('active',(i===0&&t==='departures')||(i===1&&t==='arrivals')));
+  loadAll();
+}
+
+/* ── MOBILE PANEL TOGGLE ── */
+let panelState = 'half'; // 'collapsed' | 'half' | 'expanded'
+function togglePanel(){
+  const panel = document.getElementById('panel');
+  if(window.innerWidth > 768) return;
+  if(panelState === 'collapsed'){
+    panel.classList.remove('collapsed','expanded');
+    panelState = 'half';
+  } else if(panelState === 'half'){
+    panel.classList.add('expanded');
+    panel.classList.remove('collapsed');
+    panelState = 'expanded';
+  } else {
+    panel.classList.add('collapsed');
+    panel.classList.remove('expanded');
+    panelState = 'collapsed';
+  }
+  // Resize map after panel transition
+  setTimeout(()=> map && map.invalidateSize(), 320);
+}
+
+/* ── INIT ── */
+initMap();
+renderFilters();
+loadStation(stationId,stationName);
+</script>
+</body>
+</html>
