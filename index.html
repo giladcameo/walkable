@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gilad Cameo — Portfolio</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #f8fafc;
+      --surface: #ffffff;
+      --border: #e2e8f0;
+      --accent: #0ea5e9;
+      --accent2: #0284c7;
+      --text: #0f172a;
+      --muted: #64748b;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ── Nav ── */
+    nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      background: rgba(248, 250, 252, 0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 40px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 60px;
+    }
+
+    .nav-logo {
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      color: var(--text);
+    }
+    .nav-logo span { color: var(--accent); }
+
+    .nav-links {
+      display: flex;
+      gap: 32px;
+      list-style: none;
+    }
+    .nav-links a {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 14px;
+      transition: color .2s;
+    }
+    .nav-links a:hover { color: var(--accent); }
+
+    /* ── Hero ── */
+    .hero {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 80px 24px 60px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero::before {
+      content: '';
+      position: absolute;
+      width: 600px; height: 600px;
+      background: radial-gradient(circle, rgba(14,165,233,0.08) 0%, transparent 70%);
+      top: 50%; left: 50%;
+      transform: translate(-50%, -60%);
+      pointer-events: none;
+    }
+
+    .hero-tag {
+      font-size: 13px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 20px;
+      font-weight: 600;
+    }
+
+    .hero h1 {
+      font-size: clamp(42px, 8vw, 80px);
+      font-weight: 800;
+      letter-spacing: -2px;
+      line-height: 1.05;
+      margin-bottom: 24px;
+    }
+    .hero h1 span { color: var(--accent); }
+
+    .hero p {
+      font-size: clamp(16px, 2vw, 20px);
+      color: var(--muted);
+      max-width: 520px;
+      line-height: 1.7;
+      margin-bottom: 40px;
+    }
+
+    .hero-cta {
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .btn {
+      padding: 12px 28px;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 600;
+      text-decoration: none;
+      transition: all .2s;
+      cursor: pointer;
+      border: none;
+    }
+    .btn-primary {
+      background: var(--accent2);
+      color: white;
+    }
+    .btn-primary:hover { background: var(--accent); transform: translateY(-1px); }
+    .btn-outline {
+      background: transparent;
+      color: var(--muted);
+      border: 1px solid var(--border);
+    }
+    .btn-outline:hover { border-color: var(--accent); color: var(--accent); transform: translateY(-1px); }
+
+    /* ── Section ── */
+    section {
+      padding: 100px 24px;
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+
+    .section-label {
+      font-size: 12px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--accent);
+      font-weight: 600;
+      margin-bottom: 12px;
+    }
+
+    section h2 {
+      font-size: clamp(28px, 4vw, 40px);
+      font-weight: 800;
+      letter-spacing: -1px;
+      margin-bottom: 48px;
+    }
+
+    /* ── Projects ── */
+    .projects-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 24px;
+    }
+
+    .project-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px;
+      text-decoration: none;
+      color: inherit;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      transition: all .25s;
+      position: relative;
+      overflow: hidden;
+    }
+    .project-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(14,165,233,0.04) 0%, transparent 60%);
+      opacity: 0;
+      transition: opacity .25s;
+    }
+    .project-card:hover {
+      border-color: var(--accent);
+      transform: translateY(-4px);
+      box-shadow: 0 20px 40px rgba(0,0,0,0.08);
+    }
+    .project-card:hover::before { opacity: 1; }
+
+    .project-icon {
+      font-size: 36px;
+    }
+
+    .project-title {
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+
+    .project-desc {
+      font-size: 14px;
+      color: var(--muted);
+      line-height: 1.65;
+      flex: 1;
+    }
+
+    .project-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .tag {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      background: rgba(14,165,233,0.08);
+      color: var(--accent2);
+      border: 1px solid rgba(14,165,233,0.2);
+    }
+
+    .project-arrow {
+      font-size: 18px;
+      color: var(--muted);
+      align-self: flex-end;
+      transition: color .2s, transform .2s;
+    }
+    .project-card:hover .project-arrow {
+      color: var(--accent);
+      transform: translate(3px, -3px);
+    }
+
+    /* ── About ── */
+    .about-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 48px;
+      align-items: start;
+    }
+
+    .about-text p {
+      color: var(--muted);
+      line-height: 1.8;
+      font-size: 16px;
+      margin-bottom: 16px;
+    }
+
+    .skills-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .skill {
+      padding: 8px 16px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--muted);
+      transition: all .2s;
+    }
+    .skill:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── Contact ── */
+    .contact-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 48px;
+      text-align: center;
+    }
+
+    .contact-box p {
+      color: var(--muted);
+      margin-bottom: 28px;
+      font-size: 16px;
+      line-height: 1.7;
+    }
+
+    .contact-links {
+      display: flex;
+      gap: 14px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    /* ── Footer ── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 28px 24px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    /* ── Responsive ── */
+    @media (max-width: 640px) {
+      nav { padding: 0 20px; }
+      .nav-links { gap: 20px; }
+      .about-grid { grid-template-columns: 1fr; gap: 32px; }
+      .contact-box { padding: 28px 20px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Nav -->
+<nav>
+  <div class="nav-logo">gc<span>.</span></div>
+  <ul class="nav-links">
+    <li><a href="#projects">Projects</a></li>
+    <li><a href="#about">About</a></li>
+    <li><a href="#contact">Contact</a></li>
+  </ul>
+</nav>
+
+<!-- Hero -->
+<div class="hero">
+  <div class="hero-tag">Portfolio</div>
+  <h1>Hi, I'm <span>Gilad</span><br>Cameo</h1>
+  <p>I build tools that make sense of data and place — turning ideas into real, useful products.</p>
+  <div class="hero-cta">
+    <a href="#projects" class="btn btn-primary">See My Work</a>
+    <a href="#contact" class="btn btn-outline">Get in Touch</a>
+  </div>
+</div>
+
+<!-- Projects -->
+<section id="projects">
+  <div class="section-label">Work</div>
+  <h2>Projects</h2>
+  <div class="projects-grid">
+
+    <a href="/walkable/" class="project-card">
+      <div class="project-icon">🚶</div>
+      <div class="project-title">Walkable</div>
+      <div class="project-desc">
+        An interactive map that shows everything within walking distance of any address in Israel — restaurants, transit, parks, pharmacies and more.
+      </div>
+      <div class="project-tags">
+        <span class="tag">OpenStreetMap</span>
+        <span class="tag">Leaflet.js</span>
+        <span class="tag">Overpass API</span>
+      </div>
+      <div class="project-arrow">↗</div>
+    </a>
+
+  </div>
+</section>
+
+<!-- About -->
+<section id="about">
+  <div class="section-label">About</div>
+  <h2>About Me</h2>
+  <div class="about-grid">
+    <div class="about-text">
+      <p>I'm a developer with a passion for building products that are both functional and delightful to use.</p>
+      <p>I enjoy working across the stack — from data pipelines to interactive frontends — and I'm always looking for problems worth solving.</p>
+    </div>
+    <div class="skills-list">
+      <span class="skill">Python</span>
+      <span class="skill">JavaScript</span>
+      <span class="skill">HTML / CSS</span>
+      <span class="skill">GIS / Maps</span>
+      <span class="skill">Data Analysis</span>
+      <span class="skill">APIs</span>
+      <span class="skill">Git</span>
+    </div>
+  </div>
+</section>
+
+<!-- Contact -->
+<section id="contact">
+  <div class="section-label">Contact</div>
+  <h2>Get in Touch</h2>
+  <div class="contact-box">
+    <p>Have a project in mind or just want to say hi?<br>My inbox is always open.</p>
+    <div class="contact-links">
+      <a href="mailto:gilad@gcameo.com" class="btn btn-primary">Email Me</a>
+      <a href="https://github.com/giladcameo" target="_blank" class="btn btn-outline">GitHub</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  © 2026 Gilad Cameo · gcameo.com
+</footer>
+
+</body>
+</html>
