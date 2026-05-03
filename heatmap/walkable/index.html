@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Walkable — מה יש במרחק הליכה?</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: #0f172a;
+      color: #f1f5f9;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Header ─────────────────────────────────────── */
+    header {
+      background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+      padding: 18px 24px 14px;
+      border-bottom: 1px solid #1e3a5f;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .logo {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      white-space: nowrap;
+    }
+    .logo span { color: #38bdf8; }
+
+    .search-row {
+      display: flex;
+      gap: 8px;
+      flex: 1;
+      min-width: 280px;
+      align-items: center;
+    }
+
+    .dist-control {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 6px 12px;
+      white-space: nowrap;
+    }
+
+    .dist-control label {
+      font-size: 13px;
+      color: #94a3b8;
+    }
+
+    #distSlider {
+      -webkit-appearance: none;
+      width: 110px;
+      height: 4px;
+      border-radius: 2px;
+      background: linear-gradient(to left, #38bdf8 var(--pct, 25%), #334155 var(--pct, 25%));
+      outline: none;
+      cursor: pointer;
+    }
+    #distSlider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px; height: 14px;
+      border-radius: 50%;
+      background: #38bdf8;
+      border: 2px solid #0f172a;
+      cursor: pointer;
+    }
+
+    #distValue {
+      font-size: 13px;
+      font-weight: 700;
+      color: #38bdf8;
+      min-width: 44px;
+      text-align: center;
+    }
+
+    #addressInput {
+      flex: 1;
+      padding: 10px 14px;
+      border-radius: 8px;
+      border: 1px solid #334155;
+      background: #1e293b;
+      color: #f1f5f9;
+      font-size: 15px;
+      outline: none;
+      transition: border-color .2s;
+      direction: rtl;
+    }
+    #addressInput:focus { border-color: #38bdf8; }
+    #addressInput::placeholder { color: #64748b; }
+
+    #searchBtn {
+      padding: 10px 20px;
+      background: #0ea5e9;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background .2s, transform .1s;
+    }
+    #searchBtn:hover { background: #38bdf8; }
+    #searchBtn:active { transform: scale(.97); }
+    #searchBtn:disabled { background: #334155; cursor: not-allowed; }
+
+    /* ── Status bar ─────────────────────────────────── */
+    #statusBar {
+      background: #1e293b;
+      padding: 8px 24px;
+      font-size: 13px;
+      color: #94a3b8;
+      border-bottom: 1px solid #1e3a5f;
+      min-height: 34px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .spinner {
+      width: 14px; height: 14px;
+      border: 2px solid #334155;
+      border-top-color: #38bdf8;
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      display: none;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Main layout ────────────────────────────────── */
+    main {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* ── Sidebar ────────────────────────────────────── */
+    #sidebar {
+      width: 280px;
+      min-width: 280px;
+      background: #1e293b;
+      border-left: 1px solid #1e3a5f;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    #sidebar h2 {
+      padding: 14px 16px 10px;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #64748b;
+      border-bottom: 1px solid #1e3a5f;
+    }
+
+    #categoryList {
+      overflow-y: auto;
+      flex: 1;
+    }
+
+    .cat-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 11px 16px;
+      border-bottom: 1px solid #0f172a;
+      cursor: pointer;
+      transition: background .15s;
+      user-select: none;
+    }
+    .cat-item:hover { background: #263246; }
+    .cat-item.active { background: #1e3a5f; }
+
+    .cat-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .cat-emoji { font-size: 18px; flex-shrink: 0; }
+    .cat-label { flex: 1; font-size: 14px; }
+    .cat-count {
+      font-size: 13px;
+      font-weight: 700;
+      color: #38bdf8;
+      min-width: 24px;
+      text-align: left;
+    }
+
+    #totalBadge {
+      padding: 12px 16px;
+      border-top: 1px solid #1e3a5f;
+      font-size: 13px;
+      color: #94a3b8;
+      text-align: center;
+    }
+    #totalBadge b { color: #f1f5f9; font-size: 16px; }
+
+    /* ── Map ────────────────────────────────────────── */
+    #map {
+      flex: 1;
+      z-index: 0;
+    }
+
+    /* ── POI popup ──────────────────────────────────── */
+    .poi-popup { direction: rtl; font-family: Arial, sans-serif; min-width: 160px; }
+    .poi-popup b { font-size: 14px; display: block; margin-bottom: 4px; }
+    .poi-popup .tag { font-size: 12px; color: #555; margin: 1px 0; }
+
+    /* ── Responsive ─────────────────────────────────── */
+    @media (max-width: 600px) {
+      #sidebar { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">🚶 Walk<span>able</span></div>
+  <div class="search-row">
+    <input id="addressInput" type="text"
+      placeholder="הזן כתובת — לדוגמה: רוטשילד 1, תל אביב"
+      autocomplete="off" />
+    <div class="dist-control">
+      <label for="distSlider">מרחק</label>
+      <input id="distSlider" type="range" min="100" max="2000" step="100" value="500"
+        oninput="updateDist(this.value)" />
+      <span id="distValue">500 מ׳</span>
+    </div>
+    <button id="searchBtn" onclick="run()">חפש</button>
+  </div>
+</header>
+
+<div id="statusBar"><span id="statusText">הזן כתובת כדי להתחיל</span><div class="spinner" id="spinner"></div></div>
+
+<main>
+  <div id="sidebar">
+    <h2>קטגוריות</h2>
+    <div id="categoryList"></div>
+    <div id="totalBadge" style="display:none">
+      סה"כ <b id="totalNum">0</b> מקומות במרחק הליכה
+    </div>
+  </div>
+  <div id="map"></div>
+</main>
+
+<script>
+// ── Config ────────────────────────────────────────────────────────────────────
+const OVERPASS_URL = "https://overpass-api.de/api/interpreter";
+const VALHALLA_URL = "https://valhalla1.openstreetmap.de/isochrone";
+const NOMINATIM_URL = "https://nominatim.openstreetmap.org/search";
+
+const CATEGORIES = [
+  {
+    id: "food",
+    label: "מסעדות ובתי קפה",
+    emoji: "🍽️",
+    color: "#ef4444",
+    dotColor: "#ef4444",
+    tags: `["amenity"~"restaurant|cafe|fast_food|bar|pub|food_court"]`,
+  },
+  {
+    id: "shops",
+    label: "סופרמרקטים וחנויות",
+    emoji: "🛒",
+    color: "#f97316",
+    dotColor: "#f97316",
+    tags: `["shop"~"supermarket|convenience|bakery|butcher|greengrocer|deli|grocery"]`,
+  },
+  {
+    id: "transit",
+    label: "תחבורה ציבורית",
+    emoji: "🚌",
+    color: "#3b82f6",
+    dotColor: "#3b82f6",
+    overpassRaw: true,
+    rawQuery: (bbox) =>
+      `(node["highway"="bus_stop"](${bbox});` +
+      `node["railway"~"station|subway_entrance|tram_stop"](${bbox});` +
+      `node["public_transport"~"stop_position|platform"](${bbox}););`,
+  },
+  {
+    id: "parks",
+    label: "פארקים ושטחים ירוקים",
+    emoji: "🌳",
+    color: "#22c55e",
+    dotColor: "#22c55e",
+    tags: `["leisure"~"park|garden|playground|sports_centre"]`,
+  },
+  {
+    id: "health",
+    label: "בריאות ורפואה",
+    emoji: "💊",
+    color: "#dc2626",
+    dotColor: "#dc2626",
+    tags: `["amenity"~"pharmacy|hospital|clinic|doctors|dentist"]`,
+  },
+  {
+    id: "finance",
+    label: "בנקים ו-ATM",
+    emoji: "🏦",
+    color: "#6366f1",
+    dotColor: "#6366f1",
+    tags: `["amenity"~"bank|atm"]`,
+  },
+  {
+    id: "edu",
+    label: "חינוך",
+    emoji: "📚",
+    color: "#a855f7",
+    dotColor: "#a855f7",
+    tags: `["amenity"~"school|kindergarten|university|library"]`,
+  },
+];
+
+// ── Distance slider ───────────────────────────────────────────────────────────
+function updateDist(val) {
+  const label = val >= 1000 ? (val / 1000).toFixed(1).replace('.0','') + ' ק״מ' : val + ' מ׳';
+  document.getElementById("distValue").textContent = label;
+  const pct = ((val - 100) / (2000 - 100) * 100).toFixed(1);
+  document.getElementById("distSlider").style.setProperty("--pct", pct + "%");
+}
+updateDist(500);
+
+// ── Map init ──────────────────────────────────────────────────────────────────
+const map = L.map("map", { zoomControl: true }).setView([31.5, 34.8], 8);
+L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+  attribution: "© OpenStreetMap © CARTO",
+  maxZoom: 19,
+}).addTo(map);
+
+let layerGroups = {};
+let isoLayer = null;
+let centerMarker = null;
+let visibleCats = new Set(CATEGORIES.map(c => c.id));
+
+// ── UI helpers ────────────────────────────────────────────────────────────────
+function setStatus(msg, loading = false) {
+  document.getElementById("statusText").textContent = msg;
+  document.getElementById("spinner").style.display = loading ? "block" : "none";
+  document.getElementById("searchBtn").disabled = loading;
+}
+
+function makeIcon(color) {
+  return L.divIcon({
+    className: "",
+    html: `<div style="width:10px;height:10px;border-radius:50%;background:${color};
+                border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,.5)"></div>`,
+    iconSize: [14, 14],
+    iconAnchor: [7, 7],
+  });
+}
+
+// ── Sidebar render ────────────────────────────────────────────────────────────
+function renderSidebar(counts) {
+  const list = document.getElementById("categoryList");
+  list.innerHTML = "";
+  let total = 0;
+  CATEGORIES.forEach(cat => {
+    const n = counts[cat.id] || 0;
+    total += n;
+    const div = document.createElement("div");
+    div.className = "cat-item" + (visibleCats.has(cat.id) ? " active" : "");
+    div.dataset.id = cat.id;
+    div.innerHTML = `
+      <div class="cat-dot" style="background:${div.className.includes("active") ? cat.dotColor : "#475569"}"></div>
+      <span class="cat-emoji">${cat.emoji}</span>
+      <span class="cat-label">${cat.label}</span>
+      <span class="cat-count">${n}</span>
+    `;
+    div.onclick = () => toggleCat(cat.id);
+    list.appendChild(div);
+  });
+  document.getElementById("totalNum").textContent = total;
+  document.getElementById("totalBadge").style.display = "block";
+}
+
+function toggleCat(id) {
+  if (visibleCats.has(id)) {
+    visibleCats.delete(id);
+    if (layerGroups[id]) map.removeLayer(layerGroups[id]);
+  } else {
+    visibleCats.add(id);
+    if (layerGroups[id]) layerGroups[id].addTo(map);
+  }
+  // re-render just the dot color
+  document.querySelectorAll(".cat-item").forEach(el => {
+    const cat = CATEGORIES.find(c => c.id === el.dataset.id);
+    if (!cat) return;
+    const active = visibleCats.has(cat.id);
+    el.classList.toggle("active", active);
+    el.querySelector(".cat-dot").style.background = active ? cat.dotColor : "#475569";
+  });
+}
+
+// ── Point-in-polygon (ray casting) ───────────────────────────────────────────
+function pointInGeoJSONPolygon(lat, lon, geojson) {
+  // geojson is a Feature with geometry type Polygon or MultiPolygon
+  const rings = geojson.geometry.type === "Polygon"
+    ? geojson.geometry.coordinates
+    : geojson.geometry.coordinates.flat(1);
+  return rings.some(ring => raycast(lon, lat, ring));
+}
+
+function raycast(x, y, ring) {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [xi, yi] = ring[i], [xj, yj] = ring[j];
+    if ((yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi)
+      inside = !inside;
+  }
+  return inside;
+}
+
+// ── Geocode ───────────────────────────────────────────────────────────────────
+async function geocode(address) {
+  const url = `${NOMINATIM_URL}?q=${encodeURIComponent(address)}&format=json&limit=1`;
+  const res = await fetch(url, { headers: { "Accept-Language": "he,en" } });
+  const data = await res.json();
+  if (!data.length) throw new Error("לא נמצאה כתובת");
+  return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon), display: data[0].display_name };
+}
+
+// ── Isochrone (Valhalla) ──────────────────────────────────────────────────────
+async function getIsochrone(lat, lon, distKm = 0.5) {
+  const body = {
+    locations: [{ lon, lat }],
+    costing: "pedestrian",
+    contours: [{ distance: distKm }],
+    polygons: true,
+  };
+  const res = await fetch(VALHALLA_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error("שגיאת isochrone API");
+  const geojson = await res.json();
+  return geojson.features[0]; // GeoJSON Feature (Polygon)
+}
+
+// ── Overpass query ────────────────────────────────────────────────────────────
+async function queryOverpass(ql) {
+  const query = `[out:json][timeout:25];\n${ql}\nout center;`;
+  const res = await fetch(`${OVERPASS_URL}?data=${encodeURIComponent(query)}`);
+  if (!res.ok) throw new Error("Overpass error " + res.status);
+  const data = await res.json();
+  return data.elements || [];
+}
+
+function elementCoords(el) {
+  if (el.type === "node") return [el.lat, el.lon];
+  if (el.center) return [el.center.lat, el.center.lon];
+  return null;
+}
+
+function buildOverpassQuery(cat, bbox) {
+  if (cat.overpassRaw) return cat.rawQuery(bbox);
+  return `(node${cat.tags}(${bbox}); way${cat.tags}(${bbox}););`;
+}
+
+// ── Main run ──────────────────────────────────────────────────────────────────
+async function run() {
+  const address = document.getElementById("addressInput").value.trim();
+  if (!address) return;
+
+  // Clear old layers
+  Object.values(layerGroups).forEach(lg => map.removeLayer(lg));
+  layerGroups = {};
+  if (isoLayer) { map.removeLayer(isoLayer); isoLayer = null; }
+  if (centerMarker) { map.removeLayer(centerMarker); centerMarker = null; }
+
+  try {
+    // 1. Geocode
+    setStatus("ממיר כתובת לקואורדינטות...", true);
+    const { lat, lon, display } = await geocode(address);
+
+    // 2. Isochrone
+    const distM = parseInt(document.getElementById("distSlider").value);
+    const distKm = distM / 1000;
+    setStatus(`מחשב פוליגון הליכה (${distM < 1000 ? distM + 'מ׳' : distKm + 'ק״מ'} רשת דרכים)...`, true);
+    const isoFeature = await getIsochrone(lat, lon, distKm);
+
+    // Draw isochrone
+    isoLayer = L.geoJSON(isoFeature, {
+      style: {
+        color: "#38bdf8",
+        weight: 2,
+        fillColor: "#38bdf8",
+        fillOpacity: 0.1,
+      },
+    }).addTo(map);
+
+    // Center marker
+    centerMarker = L.marker([lat, lon], {
+      icon: L.divIcon({
+        className: "",
+        html: `<div style="width:16px;height:16px;border-radius:50%;background:#f1f5f9;
+                    border:3px solid #0ea5e9;box-shadow:0 2px 6px rgba(0,0,0,.6)"></div>`,
+        iconSize: [16, 16],
+        iconAnchor: [8, 8],
+      }),
+    })
+      .bindPopup(`<div class="poi-popup"><b>${display.split(",")[0]}</b></div>`)
+      .addTo(map);
+
+    map.fitBounds(isoLayer.getBounds(), { padding: [30, 30] });
+
+    // Bounding box from isochrone
+    const b = isoLayer.getBounds();
+    const bbox = `${b.getSouth()},${b.getWest()},${b.getNorth()},${b.getEast()}`;
+
+    // 3. POIs per category
+    const counts = {};
+    for (const cat of CATEGORIES) {
+      setStatus(`${cat.emoji} שואל ${cat.label}...`, true);
+      let elements = [];
+      try {
+        elements = await queryOverpass(buildOverpassQuery(cat, bbox));
+      } catch (e) {
+        console.warn(cat.label, e);
+      }
+
+      // Filter to inside isochrone polygon
+      const inside = elements.filter(el => {
+        const coords = elementCoords(el);
+        return coords && pointInGeoJSONPolygon(coords[0], coords[1], isoFeature);
+      });
+      counts[cat.id] = inside.length;
+
+      // Build layer
+      const lg = L.layerGroup();
+      inside.forEach(el => {
+        const coords = elementCoords(el);
+        if (!coords) return;
+        const tags = el.tags || {};
+        const name = tags.name || tags["name:he"] || cat.label;
+        const lines = [`<b>${name}</b>`];
+        ["amenity", "shop", "cuisine", "opening_hours", "phone"].forEach(k => {
+          if (tags[k]) lines.push(`<span class="tag">${k}: ${tags[k]}</span>`);
+        });
+        L.marker(coords, { icon: makeIcon(cat.color) })
+          .bindPopup(`<div class="poi-popup">${lines.join("<br>")}</div>`)
+          .addTo(lg);
+      });
+      layerGroups[cat.id] = lg;
+      if (visibleCats.has(cat.id)) lg.addTo(map);
+    }
+
+    renderSidebar(counts);
+    const total = Object.values(counts).reduce((a, b) => a + b, 0);
+    setStatus(`✅ ${display.split(",")[0]} — ${total} מקומות במרחק הליכה`);
+
+  } catch (err) {
+    setStatus(`⚠️ שגיאה: ${err.message}`);
+    console.error(err);
+  }
+}
+
+// Enter key support
+document.getElementById("addressInput").addEventListener("keydown", e => {
+  if (e.key === "Enter") run();
+});
+</script>
+</body>
+</html>
