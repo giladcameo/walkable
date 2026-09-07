@@ -1,434 +1,730 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Gilad Cameo — Portfolio</title>
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Gilad Cameo — Urban Planner, Berlin</title>
+<meta name="description" content="Urban planner in Berlin, focused on mobility and walkability — interactive maps and tools, built with AI assistance." />
+<meta name="author" content="Gilad Cameo" />
+<link rel="canonical" href="https://gcameo.com/" />
+<meta property="og:type" content="website" />
+<meta property="og:url" content="https://gcameo.com/" />
+<meta property="og:title" content="Gilad Cameo — Urban Planner, Berlin" />
+<meta property="og:description" content="Mobility and walkability, made legible. Interactive maps and tools, built with AI assistance." />
+<meta name="twitter:card" content="summary_large_image" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23F5A800' stroke-width='1.8'%3E%3Cpath d='M12 2 L21 20 L12 15 L3 20 Z' stroke-linejoin='round'/%3E%3C/svg%3E" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..48,600;12..48,700;12..48,800&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500&display=swap" />
 
-    :root {
-      --bg: #f8fafc;
-      --surface: #ffffff;
-      --border: #e2e8f0;
-      --accent: #0ea5e9;
-      --accent2: #0284c7;
-      --text: #0f172a;
-      --muted: #64748b;
+<style>
+  /* ============ TOKENS ============ */
+  /* Light = survey / topographic paper */
+  :root {
+    --ground:#F2EEE4; --ground-rgb:242 238 228;
+    --surface:#FBFAF4;
+    --panel:rgba(251,250,244,.82);
+    --ink:#22201A;
+    --muted:#6C6555;
+    --line:rgba(34,32,26,.15);
+    --grid:rgba(34,32,26,.10);
+    --water:#E3E7DE;
+    --signal:#BC6A1C;
+    --sig-ink:#FFF7EC;
+    --sig-core:#22201A;
+    --c1:#A5382E; --c2:#4C7A3C; --c3:#37618E; --c4:#7B4A86;
+  }
+  /* Dark = CARTO-dark basemap */
+  :root:not([data-theme="light"]) {
+    --ground:#0A0D13; --ground-rgb:10 13 19;
+    --surface:#10151E;
+    --panel:rgba(13,18,27,.74);
+    --ink:#E7EDF4;
+    --muted:#8A93A2;
+    --line:rgba(231,237,244,.11);
+    --grid:rgba(231,237,244,.07);
+    --water:#0E141D;
+    --signal:#F5A800;
+    --sig-ink:#1A1200;
+    --sig-core:#FFFFFF;
+    --c1:#EF4444; --c2:#34D399; --c3:#5B9BFF; --c4:#B77BE8;
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --ground:#F2EEE4; --ground-rgb:242 238 228;
+      --surface:#FBFAF4;
+      --panel:rgba(251,250,244,.82);
+      --ink:#22201A;
+      --muted:#6C6555;
+      --line:rgba(34,32,26,.15);
+      --grid:rgba(34,32,26,.10);
+      --water:#E3E7DE;
+      --signal:#BC6A1C;
+      --sig-ink:#FFF7EC;
+      --sig-core:#22201A;
+      --c1:#A5382E; --c2:#4C7A3C; --c3:#37618E; --c4:#7B4A86;
     }
+  }
 
-    html { scroll-behavior: smooth; }
+  /* ============ BASE ============ */
+  * { box-sizing:border-box; margin:0; padding:0; }
+  html { scroll-behavior:smooth; }
+  body {
+    background:var(--ground);
+    color:var(--ink);
+    font-family:"IBM Plex Sans", system-ui, -apple-system, sans-serif;
+    font-size:16px;
+    line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+  }
+  img { max-width:100%; }
+  h1,h2,h3 { font-family:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif; font-weight:700; letter-spacing:-0.02em; line-height:1.05; text-wrap:balance; }
+  a { color:inherit; }
+  .mono { font-family:"IBM Plex Mono", ui-monospace, Menlo, monospace; }
 
-    body {
-      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      min-height: 100vh;
-    }
+  ::selection { background:var(--signal); color:var(--sig-ink); }
+  :focus-visible { outline:2px solid var(--signal); outline-offset:3px; }
 
-    /* ── Nav ── */
-    nav {
-      position: fixed;
-      top: 0; left: 0; right: 0;
-      z-index: 100;
-      background: rgba(248, 250, 252, 0.85);
-      backdrop-filter: blur(12px);
-      border-bottom: 1px solid var(--border);
-      padding: 0 40px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      height: 60px;
-    }
+  /* ============ NAV ============ */
+  nav {
+    position:fixed; inset:0 0 auto 0; z-index:50;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 24px;
+    border-bottom:1px solid transparent;
+    transition:background .22s, border-color .22s;
+  }
+  nav.scrolled {
+    background:var(--panel);
+    backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
+    border-color:var(--line);
+  }
+  .brand { display:flex; align-items:center; gap:10px; font-family:"Bricolage Grotesque",system-ui,sans-serif; font-weight:700; font-size:1rem; letter-spacing:-0.01em; text-decoration:none; }
+  .brand svg { width:20px; height:20px; display:block; }
+  .navlinks { display:flex; gap:22px; }
+  .navlinks a { font-family:"IBM Plex Mono",monospace; font-size:.7rem; letter-spacing:.13em; text-transform:uppercase; color:var(--muted); text-decoration:none; transition:color .15s; }
+  .navlinks a:hover { color:var(--ink); }
+  .navmeta { display:flex; align-items:center; gap:16px; }
+  .clock { font-family:"IBM Plex Mono",monospace; font-size:.7rem; letter-spacing:.06em; color:var(--muted); font-variant-numeric:tabular-nums; }
+  .clock b { color:var(--signal); font-weight:500; }
+  .themebtn {
+    font-family:"IBM Plex Mono",monospace; font-size:.64rem; letter-spacing:.1em; text-transform:uppercase;
+    background:none; border:1px solid var(--line); color:var(--muted);
+    padding:5px 9px; border-radius:3px; cursor:pointer; transition:.15s;
+  }
+  .themebtn:hover { border-color:var(--signal); color:var(--signal); }
+  @media (max-width:760px) { .navlinks { display:none; } }
 
-    .nav-logo {
-      font-size: 18px;
-      font-weight: 700;
-      letter-spacing: -0.5px;
-      color: var(--text);
-    }
-    .nav-logo span { color: var(--accent); }
+  /* ============ HERO ============ */
+  .hero {
+    position:relative;
+    min-height:clamp(560px, 84vh, 820px);
+    display:flex; align-items:flex-end;
+    padding:0 6vw 7vh;
+    overflow:hidden;
+  }
+  .hero canvas { position:absolute; inset:0; width:100%; height:100%; display:block; }
+  .hero .scrim {
+    position:absolute; inset:0; pointer-events:none;
+    background:linear-gradient(180deg,
+      rgb(var(--ground-rgb)/.55) 0%,
+      rgb(var(--ground-rgb)/0) 20%,
+      rgb(var(--ground-rgb)/0) 46%,
+      rgb(var(--ground-rgb)/.86) 100%);
+  }
+  .panel {
+    position:relative; z-index:2;
+    max-width:620px;
+    padding:26px 30px 28px;
+    background:var(--panel);
+    backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+    border:1px solid var(--line);
+    border-radius:6px;
+  }
+  .eyebrow {
+    font-family:"IBM Plex Mono",monospace; font-size:.7rem; letter-spacing:.16em; text-transform:uppercase;
+    color:var(--signal); display:flex; align-items:center; gap:10px;
+  }
+  .eyebrow::before { content:""; width:22px; height:1px; background:var(--signal); }
+  .panel h1 {
+    font-weight:800; font-size:clamp(2.3rem, 5.3vw, 3.9rem);
+    letter-spacing:-0.03em; margin:14px 0 16px;
+  }
+  .panel .sub { color:var(--muted); font-size:1.02rem; line-height:1.55; max-width:50ch; }
+  .status {
+    margin-top:18px;
+    font-family:"IBM Plex Mono",monospace; font-size:.7rem; letter-spacing:.06em; text-transform:uppercase;
+    color:var(--ink); display:flex; align-items:center; gap:9px;
+  }
+  .dot {
+    width:7px; height:7px; border-radius:50%; background:var(--signal); flex:none;
+    box-shadow:0 0 0 0 rgba(245,168,0,.6);
+    animation:pulse 2.6s infinite;
+  }
+  @keyframes pulse {
+    0% { box-shadow:0 0 0 0 rgba(245,168,0,.55); }
+    70% { box-shadow:0 0 0 9px rgba(245,168,0,0); }
+    100% { box-shadow:0 0 0 0 rgba(245,168,0,0); }
+  }
+  .cta { display:flex; gap:12px; flex-wrap:wrap; margin-top:22px; }
 
-    .nav-links {
-      display: flex;
-      gap: 32px;
-      list-style: none;
-    }
-    .nav-links a {
-      color: var(--muted);
-      text-decoration: none;
-      font-size: 14px;
-      transition: color .2s;
-    }
-    .nav-links a:hover { color: var(--accent); }
+  .btn {
+    font-family:"IBM Plex Mono",monospace; font-size:.72rem; letter-spacing:.1em; text-transform:uppercase;
+    padding:11px 18px; border-radius:3px; border:1px solid var(--line); color:var(--ink);
+    text-decoration:none; display:inline-flex; align-items:center; gap:8px;
+    transition:border-color .16s, color .16s, background .16s;
+  }
+  .btn:hover { border-color:var(--signal); color:var(--signal); }
+  .btn--fill { background:var(--signal); color:var(--sig-ink); border-color:var(--signal); }
+  .btn--fill:hover { background:var(--signal); color:var(--sig-ink); filter:brightness(1.08); }
 
-    /* ── Hero ── */
-    .hero {
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-      padding: 80px 24px 60px;
-      position: relative;
-      overflow: hidden;
-    }
+  .scalebar {
+    position:absolute; right:6vw; bottom:6vh; z-index:2;
+    font-family:"IBM Plex Mono",monospace; font-size:.58rem; letter-spacing:.08em; color:var(--muted);
+    text-align:right;
+  }
+  .scalebar .bar { display:flex; width:118px; height:6px; margin-top:4px; margin-left:auto; border:1px solid var(--muted); }
+  .scalebar .bar i { flex:1; border-right:1px solid var(--muted); }
+  .scalebar .bar i:last-child { border-right:0; }
+  .scalebar .bar i:nth-child(odd) { background:var(--muted); }
+  @media (max-width:640px) { .scalebar { display:none; } }
 
-    .hero::before {
-      content: '';
-      position: absolute;
-      width: 600px; height: 600px;
-      background: radial-gradient(circle, rgba(14,165,233,0.08) 0%, transparent 70%);
-      top: 50%; left: 50%;
-      transform: translate(-50%, -60%);
-      pointer-events: none;
-    }
+  /* ============ SHEET / SECTIONS ============ */
+  .sheet { max-width:1140px; margin:0 auto; padding:0 24px; }
+  section {
+    display:grid; grid-template-columns:132px minmax(0,1fr); gap:36px;
+    padding:78px 0; border-top:1px solid var(--line);
+  }
+  .rail {
+    font-family:"IBM Plex Mono",monospace; font-size:.68rem; letter-spacing:.12em; text-transform:uppercase;
+    color:var(--muted); line-height:1.8;
+    position:sticky; top:88px; align-self:start;
+  }
+  .rail b { color:var(--signal); font-weight:500; display:block; }
+  .col { min-width:0; }
+  .col > h2 { font-size:clamp(1.7rem, 3.6vw, 2.5rem); font-weight:700; margin-bottom:10px; }
+  .col > .lede { color:var(--muted); max-width:60ch; margin-bottom:34px; }
+  @media (max-width:820px) {
+    section { grid-template-columns:1fr; gap:14px; padding:56px 0; }
+    .rail { position:static; }
+  }
 
-    .hero-tag {
-      font-size: 13px;
-      letter-spacing: 2px;
-      text-transform: uppercase;
-      color: var(--accent);
-      margin-bottom: 20px;
-      font-weight: 600;
-    }
+  /* ============ WORK INDEX ============ */
+  .index { display:flex; flex-direction:column; }
+  .entry {
+    display:grid; grid-template-columns:112px minmax(0,1fr) 172px; gap:26px;
+    padding:24px 0; border-top:1px solid var(--line); align-items:start;
+  }
+  .entry:last-child { border-bottom:1px solid var(--line); }
+  .entry .loc { font-family:"IBM Plex Mono",monospace; font-size:.66rem; letter-spacing:.09em; color:var(--muted); line-height:1.9; }
+  .entry .loc b { color:var(--ink); font-weight:500; display:block; }
+  .entry h3 { font-size:1.3rem; font-weight:700; }
+  .entry p { color:var(--muted); font-size:.94rem; margin:7px 0 0; max-width:56ch; }
+  .entry .tags { font-family:"IBM Plex Mono",monospace; font-size:.62rem; letter-spacing:.11em; text-transform:uppercase; color:var(--muted); margin-top:12px; }
+  .entry .go { display:flex; gap:16px; margin-top:12px; }
+  .entry .go a {
+    font-family:"IBM Plex Mono",monospace; font-size:.66rem; letter-spacing:.09em; text-transform:uppercase;
+    color:var(--signal); text-decoration:none; border-bottom:1px solid transparent; transition:.15s;
+  }
+  .entry .go a:hover { border-color:var(--signal); }
+  .entry canvas {
+    width:100%; aspect-ratio:16/10; display:block;
+    border:1px solid var(--line); border-radius:4px; background:var(--surface);
+  }
+  @media (max-width:820px) {
+    .entry { grid-template-columns:1fr; gap:12px; }
+    .entry canvas { max-width:280px; }
+  }
 
-    .hero h1 {
-      font-size: clamp(42px, 8vw, 80px);
-      font-weight: 800;
-      letter-spacing: -2px;
-      line-height: 1.05;
-      margin-bottom: 24px;
-    }
-    .hero h1 span { color: var(--accent); }
+  /* ============ FILMS ============ */
+  .films { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:18px; }
+  .film { position:relative; border:1px solid var(--line); border-radius:6px; overflow:hidden; background:var(--surface); }
+  .film .frame { position:relative; }
+  .film canvas { display:block; width:100%; aspect-ratio:16/10; }
+  .film .rt {
+    position:absolute; top:9px; right:10px;
+    font-family:"IBM Plex Mono",monospace; font-size:.6rem; letter-spacing:.08em; color:#E7EDF4;
+    background:rgba(10,13,19,.6); padding:2px 6px; border-radius:3px; backdrop-filter:blur(3px);
+  }
+  .film .play {
+    position:absolute; left:12px; bottom:11px;
+    width:26px; height:26px; border-radius:50%;
+    background:var(--signal); display:grid; place-items:center;
+  }
+  .film .play::before { content:""; border-left:8px solid var(--sig-ink); border-top:5px solid transparent; border-bottom:5px solid transparent; margin-left:2px; }
+  .film figcaption { padding:11px 13px; border-top:1px solid var(--line); font-size:.9rem; }
+  .film figcaption b { font-family:"Bricolage Grotesque",system-ui,sans-serif; font-weight:700; }
+  .film figcaption span { display:block; color:var(--muted); font-size:.8rem; margin-top:2px; }
 
-    .hero p {
-      font-size: clamp(16px, 2vw, 20px);
-      color: var(--muted);
-      max-width: 520px;
-      line-height: 1.7;
-      margin-bottom: 40px;
-    }
+  /* ============ PROFILE ============ */
+  .prose p { max-width:62ch; margin-bottom:14px; }
+  .prose p + p { color:var(--muted); }
+  .callout {
+    border-left:3px solid var(--signal); padding:6px 0 6px 18px; margin:24px 0;
+    font-size:1.08rem; max-width:54ch;
+  }
+  .langs { font-family:"IBM Plex Mono",monospace; font-size:.72rem; letter-spacing:.06em; color:var(--muted); margin-top:8px; }
+  .skills { margin-top:30px; display:flex; flex-direction:column; }
+  .skills div {
+    display:grid; grid-template-columns:172px minmax(0,1fr); gap:18px;
+    padding:14px 0; border-top:1px solid var(--line);
+  }
+  .skills dt { font-family:"IBM Plex Mono",monospace; font-size:.64rem; letter-spacing:.11em; text-transform:uppercase; color:var(--muted); }
+  .skills dd { font-size:.93rem; }
+  @media (max-width:600px) { .skills div { grid-template-columns:1fr; gap:5px; } }
 
-    .hero-cta {
-      display: flex;
-      gap: 14px;
-      flex-wrap: wrap;
-      justify-content: center;
-    }
+  /* ============ CONTACT ============ */
+  .contact-lede { font-size:1.18rem; max-width:44ch; }
+  .links { display:flex; gap:12px; flex-wrap:wrap; margin-top:22px; }
 
-    .btn {
-      padding: 12px 28px;
-      border-radius: 8px;
-      font-size: 15px;
-      font-weight: 600;
-      text-decoration: none;
-      transition: all .2s;
-      cursor: pointer;
-      border: none;
-    }
-    .btn-primary {
-      background: var(--accent2);
-      color: white;
-    }
-    .btn-primary:hover { background: var(--accent); transform: translateY(-1px); }
-    .btn-outline {
-      background: transparent;
-      color: var(--muted);
-      border: 1px solid var(--border);
-    }
-    .btn-outline:hover { border-color: var(--accent); color: var(--accent); transform: translateY(-1px); }
+  /* ============ FOOTER ============ */
+  footer {
+    border-top:1px solid var(--line); margin-top:20px; padding:26px 24px;
+    display:flex; justify-content:space-between; flex-wrap:wrap; gap:12px;
+    font-family:"IBM Plex Mono",monospace; font-size:.68rem; letter-spacing:.05em; color:var(--muted);
+  }
+  footer a { color:var(--muted); text-decoration:none; }
+  footer a:hover { color:var(--ink); }
+  .whereami { background:none; border:0; font:inherit; color:var(--signal); cursor:pointer; letter-spacing:.05em; }
 
-    /* ── Section ── */
-    section {
-      padding: 100px 24px;
-      max-width: 1000px;
-      margin: 0 auto;
-    }
-
-    .section-label {
-      font-size: 12px;
-      letter-spacing: 2px;
-      text-transform: uppercase;
-      color: var(--accent);
-      font-weight: 600;
-      margin-bottom: 12px;
-    }
-
-    section h2 {
-      font-size: clamp(28px, 4vw, 40px);
-      font-weight: 800;
-      letter-spacing: -1px;
-      margin-bottom: 48px;
-    }
-
-    /* ── Projects ── */
-    .projects-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-      gap: 24px;
-    }
-
-    .project-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 28px;
-      text-decoration: none;
-      color: inherit;
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
-      transition: all .25s;
-      position: relative;
-      overflow: hidden;
-    }
-    .project-card::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background: linear-gradient(135deg, rgba(14,165,233,0.04) 0%, transparent 60%);
-      opacity: 0;
-      transition: opacity .25s;
-    }
-    .project-card:hover {
-      border-color: var(--accent);
-      transform: translateY(-4px);
-      box-shadow: 0 20px 40px rgba(0,0,0,0.08);
-    }
-    .project-card:hover::before { opacity: 1; }
-
-    .project-icon {
-      font-size: 36px;
-    }
-
-    .project-title {
-      font-size: 20px;
-      font-weight: 700;
-      letter-spacing: -0.5px;
-    }
-
-    .project-desc {
-      font-size: 14px;
-      color: var(--muted);
-      line-height: 1.65;
-      flex: 1;
-    }
-
-    .project-tags {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-    }
-
-    .tag {
-      font-size: 11px;
-      font-weight: 600;
-      letter-spacing: 0.5px;
-      padding: 4px 10px;
-      border-radius: 20px;
-      background: rgba(14,165,233,0.08);
-      color: var(--accent2);
-      border: 1px solid rgba(14,165,233,0.2);
-    }
-
-    .project-arrow {
-      font-size: 18px;
-      color: var(--muted);
-      align-self: flex-end;
-      transition: color .2s, transform .2s;
-    }
-    .project-card:hover .project-arrow {
-      color: var(--accent);
-      transform: translate(3px, -3px);
-    }
-
-    /* ── About ── */
-    .about-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 48px;
-      align-items: start;
-    }
-
-    .about-text p {
-      color: var(--muted);
-      line-height: 1.8;
-      font-size: 16px;
-      margin-bottom: 16px;
-    }
-
-    .skills-list {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-    }
-
-    .skill {
-      padding: 8px 16px;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      font-size: 13px;
-      font-weight: 500;
-      color: var(--muted);
-      transition: all .2s;
-    }
-    .skill:hover { border-color: var(--accent); color: var(--accent); }
-
-    /* ── Contact ── */
-    .contact-box {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 48px;
-      text-align: center;
-    }
-
-    .contact-box p {
-      color: var(--muted);
-      margin-bottom: 28px;
-      font-size: 16px;
-      line-height: 1.7;
-    }
-
-    .contact-links {
-      display: flex;
-      gap: 14px;
-      justify-content: center;
-      flex-wrap: wrap;
-    }
-
-    /* ── Footer ── */
-    footer {
-      border-top: 1px solid var(--border);
-      padding: 28px 24px;
-      text-align: center;
-      color: var(--muted);
-      font-size: 13px;
-    }
-
-    /* ── Responsive ── */
-    @media (max-width: 640px) {
-      nav { padding: 0 20px; }
-      .nav-links { gap: 20px; }
-      .about-grid { grid-template-columns: 1fr; gap: 32px; }
-      .contact-box { padding: 28px 20px; }
-    }
-  </style>
+  @media (prefers-reduced-motion: reduce) {
+    * { animation:none !important; transition:none !important; }
+    html { scroll-behavior:auto; }
+  }
+</style>
 </head>
 <body>
 
-<!-- Nav -->
-<nav>
-  <div class="nav-logo">gc<span>.</span></div>
-  <ul class="nav-links">
-    <li><a href="#projects">Projects</a></li>
-    <li><a href="#about">About</a></li>
-    <li><a href="#contact">Contact</a></li>
-  </ul>
+<nav id="nav">
+  <a class="brand" href="#top">
+    <svg viewBox="0 0 24 24" fill="none" stroke="var(--signal)" stroke-width="1.6" aria-hidden="true">
+      <path d="M12 2 L21 20 L12 15 L3 20 Z" stroke-linejoin="round" />
+    </svg>
+    Gilad Cameo
+  </a>
+  <div class="navlinks">
+    <a href="#work">Work</a>
+    <a href="#motion">Motion</a>
+    <a href="#about">Profile</a>
+    <a href="#contact">Contact</a>
+  </div>
+  <div class="navmeta">
+    <span class="clock"><b>BER</b> <span id="clock">--:--:--</span></span>
+    <button class="themebtn" id="themebtn" type="button">Light</button>
+  </div>
 </nav>
 
-<!-- Hero -->
-<div class="hero">
-  <div class="hero-tag">Portfolio</div>
-  <h1>Hi, I'm <span>Gilad</span><br>Cameo</h1>
-  <p>I build tools that make sense of data and place — turning ideas into real, useful products.</p>
-  <div class="hero-cta">
-    <a href="#projects" class="btn btn-primary">See My Work</a>
-    <a href="#contact" class="btn btn-outline">Get in Touch</a>
-  </div>
-</div>
-
-<!-- Projects -->
-<section id="projects">
-  <div class="section-label">Work</div>
-  <h2>Projects</h2>
-  <div class="projects-grid">
-
-    <a href="/walkable/" class="project-card">
-      <div class="project-icon">🚶</div>
-      <div class="project-title">Walkable</div>
-      <div class="project-desc">
-        An interactive map that shows everything within walking distance of any address in Israel — restaurants, transit, parks, pharmacies and more.
-      </div>
-      <div class="project-tags">
-        <span class="tag">OpenStreetMap</span>
-        <span class="tag">Leaflet.js</span>
-        <span class="tag">Overpass API</span>
-      </div>
-      <div class="project-arrow">↗</div>
-    </a>
-
-    <a href="/transit/" class="project-card">
-      <div class="project-icon">🚆</div>
-      <div class="project-title">Berlin Transit Live</div>
-      <div class="project-desc">
-        A real-time dashboard tracking Berlin's public transit network — visualizing live departures, delays, and routes across the city.
-      </div>
-      <div class="project-tags">
-        <span class="tag">GTFS</span>
-        <span class="tag">Leaflet.js</span>
-        <span class="tag">Real-time</span>
-      </div>
-      <div class="project-arrow">↗</div>
-    </a>
-
-    <a href="/public-buildings/" class="project-card">
-      <div class="project-icon">🏛️</div>
-      <div class="project-title">Public Buildings Dashboard</div>
-      <div class="project-desc">
-        An interactive map dashboard exploring public buildings and points of interest across settlements in Israel, with accessibility layers.
-      </div>
-      <div class="project-tags">
-        <span class="tag">GIS</span>
-        <span class="tag">OSM</span>
-        <span class="tag">Hebrew</span>
-      </div>
-      <div class="project-arrow">↗</div>
-    </a>
-
-  </div>
-</section>
-
-<!-- About -->
-<section id="about">
-  <div class="section-label">About</div>
-  <h2>About Me</h2>
-  <div class="about-grid">
-    <div class="about-text">
-      <p>I'm a developer with a passion for building products that are both functional and delightful to use.</p>
-      <p>I enjoy working across the stack — from data pipelines to interactive frontends — and I'm always looking for problems worth solving.</p>
-    </div>
-    <div class="skills-list">
-      <span class="skill">Python</span>
-      <span class="skill">JavaScript</span>
-      <span class="skill">HTML / CSS</span>
-      <span class="skill">GIS / Maps</span>
-      <span class="skill">Data Analysis</span>
-      <span class="skill">APIs</span>
-      <span class="skill">Git</span>
+<header class="hero" id="top">
+  <canvas id="hero-canvas" aria-hidden="true"></canvas>
+  <div class="scrim"></div>
+  <div class="panel">
+    <p class="eyebrow">52.520&deg; N&nbsp;&nbsp;13.405&deg; E &mdash; Berlin</p>
+    <h1>I make cities legible.</h1>
+    <p class="sub">Urban planner in Berlin, focused on mobility and walkability. I build interactive maps and tools &mdash; with AI as my pair programmer &mdash; to explore how a place actually works.</p>
+    <p class="status"><span class="dot"></span> Open to work &middot; urban planning / mobility roles &middot; Berlin or EU-remote</p>
+    <div class="cta">
+      <a class="btn btn--fill" href="#work">See the work</a>
+      <a class="btn" href="#motion">Watch the films</a>
     </div>
   </div>
-</section>
-
-<!-- Contact -->
-<section id="contact">
-  <div class="section-label">Contact</div>
-  <h2>Get in Touch</h2>
-  <div class="contact-box">
-    <p>Have a project in mind or just want to say hi?<br>My inbox is always open.</p>
-    <div class="contact-links">
-      <a href="mailto:gilad@gcameo.com" class="btn btn-primary">Email Me</a>
-      <a href="https://github.com/giladcameo" target="_blank" class="btn btn-outline">GitHub</a>
-    </div>
+  <div class="scalebar">
+    approx. scale
+    <div class="bar"><i></i><i></i><i></i><i></i></div>
+    0 &mdash; 2 km
   </div>
-</section>
+</header>
+
+<main class="sheet">
+
+  <!-- WORK -->
+  <section id="work">
+    <div class="rail">&sect;01<b>Work</b></div>
+    <div class="col">
+      <h2>Selected work</h2>
+      <p class="lede">Three projects &mdash; a real-time transit board, a walkability tool, and a set of short films made from schedule data. Each started as a planning question; each is something you can open in a browser and read. Built with AI assistance, directed and reviewed by me. Labelled by where the work is.</p>
+
+      <div class="index">
+        <article class="entry">
+          <div class="loc"><b>DE&thinsp;/&thinsp;BER</b>52.52&deg; N<br />13.40&deg; E</div>
+          <div>
+            <h3>Berlin Transit Live</h3>
+            <p>A live board for Berlin&rsquo;s U-Bahn and S-Bahn &mdash; departures, delays and countdowns for any station, plus every tracked train moving on the map, refreshed every 10&nbsp;seconds. Positions come from per-trip polling against the VBB and DB APIs; click a train to draw its full route.</p>
+            <div class="tags">VBB / DB API &middot; GTFS-RT &middot; Leaflet &middot; real-time</div>
+            <div class="go"><a href="/transit/">Live &rarr;</a></div>
+          </div>
+          <canvas data-scene="mini" data-seed="7" data-line="--c3" aria-hidden="true"></canvas>
+        </article>
+
+        <article class="entry">
+          <div class="loc"><b>IL&thinsp;/&thinsp;NAT</b>31.0&deg; N<br />34.8&deg; E</div>
+          <div>
+            <h3>Walkable</h3>
+            <p>Type any address in Israel and see what is genuinely reachable on foot &mdash; a real pedestrian isochrone from Valhalla, then every caf&eacute;, clinic, bus stop and supermarket inside that polygon, pulled live from OpenStreetMap and filtered point by point. Adjustable 100&nbsp;m&ndash;2&nbsp;km. Hebrew, RTL.</p>
+            <div class="tags">Valhalla isochrones &middot; Overpass &middot; OpenStreetMap &middot; Leaflet</div>
+            <div class="go"><a href="/walkable/">Live &rarr;</a></div>
+          </div>
+          <canvas data-scene="mini" data-seed="19" data-line="--c2" aria-hidden="true"></canvas>
+        </article>
+
+        <article class="entry">
+          <div class="loc"><b>MULTI</b>BER / NYC<br />/ TLV</div>
+          <div>
+            <h3>Cities in Motion</h3>
+            <p>Short films that turn a city&rsquo;s public-transport schedule into a cinematic fly-through of one full service day &mdash; the network filling at rush hour, thinning to a skeleton overnight. Time is warped so the peaks dwell and the quiet hours whip past. Built for Berlin, then re-pointed at New York and Tel Aviv.</p>
+            <div class="tags">GTFS &middot; deck.gl &middot; time-warp pacing &middot; AI-assisted build</div>
+            <div class="go"><a href="#motion">Watch &rarr;</a></div>
+          </div>
+          <canvas data-scene="mini" data-seed="4" data-line="--signal" aria-hidden="true"></canvas>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- MOTION -->
+  <section id="motion">
+    <div class="rail">&sect;02<b>Motion</b></div>
+    <div class="col">
+      <h2>Cities in Motion</h2>
+      <p class="lede">Films made from public schedule data &mdash; one full service day compressed into two minutes, time-warped so the rush hours dwell and the quiet night whips past. The finished cuts are arriving on this page soon; below is an impression of the motion.</p>
+      <div class="films">
+        <figure class="film">
+          <div class="frame">
+            <canvas data-scene="film" data-seed="41" data-speed="15" aria-hidden="true"></canvas>
+            <span class="rt mono">Berlin</span>
+            <span class="play" aria-hidden="true"></span>
+          </div>
+          <figcaption><b>Berlin</b><span>Rail departures over 24 hours</span></figcaption>
+        </figure>
+        <figure class="film">
+          <div class="frame">
+            <canvas data-scene="film" data-seed="88" data-speed="19" aria-hidden="true"></canvas>
+            <span class="rt mono">New York</span>
+            <span class="play" aria-hidden="true"></span>
+          </div>
+          <figcaption><b>New York</b><span>The subway, one weekday</span></figcaption>
+        </figure>
+        <figure class="film">
+          <div class="frame">
+            <canvas data-scene="film" data-seed="63" data-speed="12" aria-hidden="true"></canvas>
+            <span class="rt mono">Tel Aviv</span>
+            <span class="play" aria-hidden="true"></span>
+          </div>
+          <figcaption><b>Tel Aviv</b><span>Six centres, no downtown</span></figcaption>
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <!-- PROFILE -->
+  <section id="about">
+    <div class="rail">&sect;03<b>Profile</b></div>
+    <div class="col">
+      <h2>Profile</h2>
+      <div class="prose">
+        <p>I&rsquo;m an urban planner based in Berlin, focused on mobility and walkability &mdash; how people move through a city on foot and by transit, and how the built environment helps or gets in the way.</p>
+        <p>I&rsquo;m not a software engineer. I build these maps and tools by pairing with AI: I bring the planning question and the judgement about what&rsquo;s worth measuring, the AI writes the code, and I direct, review and iterate until it&rsquo;s right. It means I can go from &ldquo;I wonder how much of this district is really within a ten-minute walk&rdquo; to a working interactive map in an afternoon &mdash; no brief, no dev queue.</p>
+        <p>Most of what&rsquo;s here started as a question about my own city or one I&rsquo;d just moved to. What&rsquo;s actually reachable on foot from this address? Where are the S-Bahn trains right now, and which are late? What does a whole service day look like at once? I&rsquo;m Israeli and I work in Hebrew and English.</p>
+      </div>
+      <p class="callout">Looking for an urban planning or mobility role &mdash; in Berlin, or remote within the EU.</p>
+      <p class="langs">LANGUAGES&nbsp;&nbsp;Hebrew (native) &middot; English (fluent) &middot; German (learning)</p>
+
+      <dl class="skills">
+        <div>
+          <dt>Planning focus</dt>
+          <dd>Walkability &amp; pedestrian access &middot; public transport &middot; how infrastructure shapes daily life &middot; communicating spatial analysis to non-technical audiences</dd>
+        </div>
+        <div>
+          <dt>How I build</dt>
+          <dd>AI-assisted development &mdash; I scope, direct and review &middot; interactive web maps (Leaflet, deck.gl) &middot; QGIS &middot; Python where it&rsquo;s needed</dd>
+        </div>
+        <div>
+          <dt>Data I work with</dt>
+          <dd>OpenStreetMap / Overpass &middot; GTFS &amp; GTFS-RT &middot; isochrones &amp; routing (Valhalla) &middot; transit APIs (VBB, DB) &middot; open-data portals</dd>
+        </div>
+      </dl>
+    </div>
+  </section>
+
+  <!-- CONTACT -->
+  <section id="contact">
+    <div class="rail">&sect;04<b>Contact</b></div>
+    <div class="col">
+      <h2>Get in touch</h2>
+      <p class="contact-lede">If you&rsquo;re hiring for urban planning or mobility work, or just want to talk shop &mdash; email me.</p>
+      <div class="links">
+        <a class="btn btn--fill" href="mailto:g.cameo@gmail.com">Email</a>
+        <a class="btn" href="https://github.com/giladcameo">GitHub</a>
+      </div>
+    </div>
+  </section>
+</main>
 
 <footer>
-  © 2026 Gilad Cameo · gcameo.com
+  <span>&copy; 2026 Gilad Cameo &middot; built with open data, no backend</span>
+  <button class="whereami" id="whereami" type="button">&#9656; where am i?</button>
 </footer>
 
+<script>
+(function () {
+  "use strict";
+  var RM = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  /* ---- nav scroll state ---- */
+  var nav = document.getElementById("nav");
+  function onScroll() { nav.classList.toggle("scrolled", window.scrollY > 60); }
+  window.addEventListener("scroll", onScroll, { passive: true });
+  onScroll();
+
+  /* ---- Berlin clock ---- */
+  var clockEl = document.getElementById("clock");
+  var fmt = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/Berlin", hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false
+  });
+  function tickClock() { clockEl.textContent = fmt.format(new Date()); }
+  tickClock();
+  setInterval(tickClock, 1000);
+
+  /* ---- theme toggle ---- */
+  var STORE = "gc-theme";
+  var btn = document.getElementById("themebtn");
+  function systemDark() { return window.matchMedia("(prefers-color-scheme: dark)").matches; }
+  function currentDark() {
+    var t = document.documentElement.getAttribute("data-theme");
+    if (t === "dark") return true;
+    if (t === "light") return false;
+    return systemDark();
+  }
+  function syncBtn() { btn.textContent = currentDark() ? "Light" : "Dark"; }
+  try {
+    var saved = localStorage.getItem(STORE);
+    if (saved === "dark" || saved === "light") document.documentElement.setAttribute("data-theme", saved);
+  } catch (e) {}
+  syncBtn();
+  btn.addEventListener("click", function () {
+    var next = currentDark() ? "light" : "dark";
+    document.documentElement.setAttribute("data-theme", next);
+    try { localStorage.setItem(STORE, next); } catch (e) {}
+    syncBtn();
+    refreshScenes();
+  });
+  window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", function () {
+    if (!document.documentElement.getAttribute("data-theme")) { syncBtn(); refreshScenes(); }
+  });
+
+  /* ---- where am i ---- */
+  var wai = document.getElementById("whereami");
+  wai.addEventListener("click", function () {
+    if (!navigator.geolocation) { wai.textContent = "geolocation unavailable"; return; }
+    wai.textContent = "locating…";
+    navigator.geolocation.getCurrentPosition(function (p) {
+      var la = p.coords.latitude, lo = p.coords.longitude;
+      wai.textContent = "you are here — " +
+        Math.abs(la).toFixed(3) + "° " + (la >= 0 ? "N" : "S") + "  " +
+        Math.abs(lo).toFixed(3) + "° " + (lo >= 0 ? "E" : "W");
+    }, function () { wai.textContent = "location denied"; });
+  });
+
+  /* ================= TRANSIT-NETWORK CANVAS ================= */
+  function mulberry32(a) {
+    return function () {
+      a |= 0; a = a + 0x6D2B79F5 | 0;
+      var t = Math.imul(a ^ a >>> 15, 1 | a);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+
+  function buildNet(w, h, seed, cfg) {
+    var rnd = mulberry32(seed);
+    var cols = cfg.cols, rows = cfg.rows;
+    var pts = [], i, j;
+    for (i = 0; i < cols; i++) for (j = 0; j < rows; j++) {
+      pts.push({
+        x: (i + 0.5) / cols * w + (rnd() - 0.5) * (w / cols) * 0.6,
+        y: (j + 0.5) / rows * h + (rnd() - 0.5) * (h / rows) * 0.6
+      });
+    }
+    var lines = [], k;
+    var reach = Math.min(w, h) * 0.3;
+    for (k = 0; k < cfg.lines; k++) {
+      var horiz = rnd() > 0.44;
+      var band = horiz ? 0.16 * h : 0.16 * w;
+      var ca = horiz ? 0.12 * h + rnd() * 0.76 * h : 0.12 * w + rnd() * 0.76 * w;
+      var a = horiz ? { x: 0, y: ca + (rnd() - 0.5) * band } : { x: ca + (rnd() - 0.5) * band, y: 0 };
+      var b = horiz ? { x: w, y: ca + (rnd() - 0.5) * band } : { x: ca + (rnd() - 0.5) * band, y: h };
+      var dx = b.x - a.x, dy = b.y - a.y, len = Math.hypot(dx, dy) || 1;
+      var nx = dx / len, ny = dy / len;
+      var mids = pts.map(function (p) {
+        var t = (p.x - a.x) * nx + (p.y - a.y) * ny;
+        var px = a.x + nx * t, py = a.y + ny * t;
+        return { p: p, t: t, d: Math.hypot(p.x - px, p.y - py) };
+      }).filter(function (o) { return o.d < reach && o.t > len * 0.04 && o.t < len * 0.96; })
+        .sort(function (m, n) { return m.t - n.t; })
+        .map(function (o) { return o.p; });
+      var path = [a].concat(mids, [b]);
+      var cum = [0], total = 0;
+      for (i = 1; i < path.length; i++) {
+        total += Math.hypot(path[i].x - path[i - 1].x, path[i].y - path[i - 1].y);
+        cum.push(total);
+      }
+      var veh = [];
+      for (i = 0; i < cfg.veh; i++) veh.push({ d: rnd() * total, s: cfg.speed * (0.7 + rnd() * 0.6) });
+      lines.push({ path: path, cum: cum, total: total || 1, veh: veh });
+    }
+    return { pts: pts, lines: lines, w: w, h: h };
+  }
+
+  function ptAt(line, d) {
+    var total = line.total;
+    d = ((d % total) + total) % total;
+    var cum = line.cum, path = line.path, i = 1;
+    while (i < cum.length - 1 && cum[i] < d) i++;
+    var seg = (cum[i] - cum[i - 1]) || 1;
+    var f = (d - cum[i - 1]) / seg;
+    var p0 = path[i - 1], p1 = path[i];
+    return { x: p0.x + (p1.x - p0.x) * f, y: p0.y + (p1.y - p0.y) * f };
+  }
+
+  function readPal() {
+    var cs = getComputedStyle(document.documentElement);
+    var g = function (n) { return cs.getPropertyValue(n).trim(); };
+    return {
+      ground: g("--ground"), water: g("--water"), grid: g("--grid"),
+      muted: g("--muted"), signal: g("--signal"), core: g("--sig-core"),
+      cats: [g("--c1"), g("--c2"), g("--c3"), g("--c4")]
+    };
+  }
+
+  function drawNet(ctx, net, pal, override) {
+    var w = net.w, h = net.h, TAU = Math.PI * 2;
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = pal.ground; ctx.fillRect(0, 0, w, h);
+
+    /* river */
+    ctx.save();
+    ctx.strokeStyle = pal.water;
+    ctx.lineWidth = Math.max(16, h * 0.11); ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(-20, h * 0.3);
+    ctx.bezierCurveTo(w * 0.28, h * 0.08, w * 0.56, h * 0.66, w + 20, h * 0.4);
+    ctx.stroke();
+    ctx.restore();
+
+    /* graticule */
+    ctx.strokeStyle = pal.grid; ctx.lineWidth = 1;
+    var gs = Math.max(60, Math.min(w, h) / 6), x, y;
+    for (x = gs * 0.5; x < w; x += gs) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke(); }
+    for (y = gs * 0.5; y < h; y += gs) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke(); }
+
+    /* lines */
+    net.lines.forEach(function (ln, idx) {
+      ctx.strokeStyle = override || pal.cats[idx % pal.cats.length];
+      ctx.globalAlpha = 0.5; ctx.lineWidth = 2.4; ctx.lineJoin = "round";
+      ctx.beginPath();
+      ln.path.forEach(function (p, i) { i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y); });
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    });
+
+    /* stations */
+    net.pts.forEach(function (p) {
+      ctx.fillStyle = pal.ground; ctx.strokeStyle = pal.muted; ctx.lineWidth = 1.3;
+      ctx.beginPath(); ctx.arc(p.x, p.y, 2.5, 0, TAU); ctx.fill(); ctx.stroke();
+    });
+
+    /* vehicles */
+    net.lines.forEach(function (ln) {
+      ln.veh.forEach(function (v) {
+        var t;
+        for (t = 6; t >= 1; t--) {
+          var tp = ptAt(ln, v.d - t * 3.4);
+          ctx.globalAlpha = (1 - t / 7) * 0.5;
+          ctx.fillStyle = pal.signal;
+          ctx.beginPath(); ctx.arc(tp.x, tp.y, Math.max(0.6, 3.3 - t * 0.34), 0, TAU); ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+        var q = ptAt(ln, v.d);
+        var rg = ctx.createRadialGradient(q.x, q.y, 0, q.x, q.y, 11);
+        rg.addColorStop(0, pal.signal); rg.addColorStop(1, "rgba(245,168,0,0)");
+        ctx.fillStyle = rg;
+        ctx.beginPath(); ctx.arc(q.x, q.y, 11, 0, TAU); ctx.fill();
+        ctx.fillStyle = pal.core;
+        ctx.beginPath(); ctx.arc(q.x, q.y, 2, 0, TAU); ctx.fill();
+      });
+    });
+  }
+
+  var scenes = [];
+  var DPR = Math.min(window.devicePixelRatio || 1, 2);
+
+  function layout(sc) {
+    var r = sc.canvas.getBoundingClientRect();
+    if (r.width < 2 || r.height < 2) return;
+    sc.canvas.width = Math.round(r.width * DPR);
+    sc.canvas.height = Math.round(r.height * DPR);
+    sc.ctx = sc.canvas.getContext("2d");
+    sc.ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    sc.net = buildNet(r.width, r.height, sc.seed, sc.cfg);
+    sc.pal = readPal();
+    sc.override = sc.lineVar ? getComputedStyle(document.documentElement).getPropertyValue(sc.lineVar).trim() : null;
+    drawNet(sc.ctx, sc.net, sc.pal, sc.override);
+  }
+
+  function refreshScenes() {
+    scenes.forEach(function (sc) {
+      if (!sc.ctx) return;
+      sc.pal = readPal();
+      sc.override = sc.lineVar ? getComputedStyle(document.documentElement).getPropertyValue(sc.lineVar).trim() : null;
+      drawNet(sc.ctx, sc.net, sc.pal, sc.override);
+    });
+  }
+
+  document.querySelectorAll("canvas[data-scene]").forEach(function (cv) {
+    var kind = cv.getAttribute("data-scene");
+    var cfg, animate;
+    if (kind === "hero") { cfg = { cols: 8, rows: 6, lines: 5, veh: 2, speed: 15 }; animate = true; }
+    else if (kind === "film") { cfg = { cols: 6, rows: 4, lines: 4, veh: 2, speed: +cv.getAttribute("data-speed") || 15 }; animate = true; }
+    else { cfg = { cols: 5, rows: 4, lines: 3, veh: 1, speed: 8 }; animate = false; }
+    scenes.push({
+      canvas: cv, cfg: cfg, animate: animate,
+      seed: +cv.getAttribute("data-seed") || 1,
+      lineVar: cv.getAttribute("data-line") || null,
+      ctx: null, net: null, pal: null, override: null
+    });
+  });
+
+  var heroCv = document.getElementById("hero-canvas");
+  scenes.push({
+    canvas: heroCv, cfg: { cols: 9, rows: 6, lines: 6, veh: 2, speed: 15 },
+    animate: true, seed: 2026, lineVar: null, ctx: null, net: null, pal: null, override: null
+  });
+
+  scenes.forEach(layout);
+
+  var rzT;
+  window.addEventListener("resize", function () {
+    clearTimeout(rzT);
+    rzT = setTimeout(function () { DPR = Math.min(window.devicePixelRatio || 1, 2); scenes.forEach(layout); }, 160);
+  });
+
+  if (!RM) {
+    var last = performance.now();
+    var loop = function (now) {
+      var dt = Math.min(0.05, (now - last) / 1000); last = now;
+      for (var i = 0; i < scenes.length; i++) {
+        var sc = scenes[i];
+        if (!sc.animate || !sc.ctx) continue;
+        for (var l = 0; l < sc.net.lines.length; l++) {
+          var ln = sc.net.lines[l];
+          for (var v = 0; v < ln.veh.length; v++) ln.veh[v].d += ln.veh[v].s * dt;
+        }
+        drawNet(sc.ctx, sc.net, sc.pal, sc.override);
+      }
+      requestAnimationFrame(loop);
+    };
+    requestAnimationFrame(loop);
+  }
+})();
+</script>
 </body>
 </html>
