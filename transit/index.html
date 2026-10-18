@@ -308,11 +308,16 @@ function toggleTheme(){
   document.getElementById('themeBtn').textContent = isDark ? '🌙' : '☀️';
 }
 
+// API data (stop and line names, directions) goes into HTML — escape it first.
+function esc(v){
+  return String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
 function setStationMarker(lat,lon,name){
   if(stationMarker) stationMarker.remove();
   stationMarker = L.circleMarker([lat,lon],{
     radius:9,color:'#58a6ff',fillColor:'#58a6ff',fillOpacity:.4,weight:2,zIndexOffset:1000
-  }).addTo(map).bindTooltip(`<b>${name}</b>`,{direction:'right'});
+  }).addTo(map).bindTooltip(`<b>${esc(name)}</b>`,{direction:'right'});
   map.setView([lat,lon],Math.max(map.getZoom(),13),{animate:true,duration:.5});
 }
 
@@ -399,7 +404,7 @@ function updateVehicles(movements){
   });
   const sDetail=Object.keys(sLines).sort().join(' ')||'—';
   document.getElementById('debugBadge').innerHTML=
-    `<b>On map: ${displayed}</b> (S: ${sDetail})`;
+    `<b>On map: ${displayed}</b> (S: ${esc(sDetail)})`;
 
   (movements||[]).forEach(m=>{
     if(!m.line||!m.location) return;
@@ -416,13 +421,13 @@ function updateVehicles(movements){
     } else {
       const icon=L.divIcon({
         className:'veh-icon',
-        html:`<span style="background:${bg};color:${fg}">${n}</span>`,
+        html:`<span style="background:${bg};color:${fg}">${esc(n)}</span>`,
         iconAnchor:[15,8]
       });
       const line=m.line;
       vehicleMarkers[id]=L.marker([lat,lon],{icon,zIndexOffset:0})
         .addTo(map)
-        .bindTooltip(`${n}${m.direction?' → '+m.direction:''}`,{sticky:true})
+        .bindTooltip(esc(`${n}${m.direction?' → '+m.direction:''}`),{sticky:true})
         .on('click',()=>showRoute(id,line));
     }
   });
@@ -464,14 +469,21 @@ searchInput.addEventListener('input',()=>{
 document.addEventListener('click',e=>{
   if(!e.target.closest('.search-wrap')) searchResults.classList.remove('open');
 });
+let searchStops=[];
+function pickStop(i){
+  const s=searchStops[i]; if(!s) return;
+  loadStation(s.id,s.name);searchInput.value='';searchResults.classList.remove('open');
+}
+
 async function doSearch(q){
   try{
     const r=await fetch(`${API}/locations?query=${encodeURIComponent(q)}&results=7&stops=true&addresses=false&poi=false`);
     const data=await r.json();
     const stops=data.filter(d=>d.type==='stop');
+    searchStops=stops;
     searchResults.innerHTML=stops.length
-      ? stops.map(s=>`<div class="sr-item" onclick="loadStation('${s.id}','${s.name}');searchInput.value='';searchResults.classList.remove('open')">
-          <div class="sr-name">${s.name}</div>
+      ? stops.map((s,i)=>`<div class="sr-item" onclick="pickStop(${i})">
+          <div class="sr-name">${esc(s.name)}</div>
           <div class="sr-sub">${Object.keys(s.products||{}).filter(k=>s.products[k]).join(' · ')}</div>
         </div>`).join('')
       : '<div class="sr-item"><span style="color:var(--muted)">Keine Ergebnisse</span></div>';
@@ -521,7 +533,7 @@ function lineBadge(line){
   const n=line.name||'?';
   const bg=LINE_COLORS[n]||productBg(line.product)||'#444';
   const fg=DARK_FG.has(n)?'#000':'#fff';
-  return `<span class="line-badge" style="background:${bg};color:${fg}">${n}</span>`;
+  return `<span class="line-badge" style="background:${bg};color:${fg}">${esc(n)}</span>`;
 }
 function fmtTime(iso){
   if(!iso) return '—';
@@ -551,7 +563,7 @@ async function fetchDeps(id,type){
   depAbort=new AbortController();
   const qs=FILTER_DEFS.map(f=>f.key+'='+(filters[f.key]?'true':'false')).join('&');
   const ep=type==='departures'?'departures':'arrivals';
-  const res=await fetch(`${API}/stops/${id}/${ep}?duration=90&results=40&bus=false&tram=false&regional=false&express=false&nationalExpress=false&national=false&${qs}`,
+  const res=await fetch(`${API}/stops/${encodeURIComponent(id)}/${ep}?duration=90&results=40&bus=false&tram=false&regional=false&express=false&nationalExpress=false&national=false&${qs}`,
     {signal:depAbort.signal});
   if(!res.ok) throw new Error(`HTTP ${res.status}`);
   const data=await res.json();
@@ -570,7 +582,7 @@ function renderBoard(deps,type){
     const mins=minsUntil(when);
     return `<div class="dep-row">
       ${lineBadge(d.line)}
-      <span class="dep-dest" title="${dest}">${dest}</span>
+      <span class="dep-dest" title="${esc(dest)}">${esc(dest)}</span>
       <span class="dep-time">${fmtTime(d.plannedWhen)}${delaySpan(d.plannedWhen,d.when)}</span>
       ${cdChip(mins)}
     </div>`;
@@ -618,7 +630,7 @@ async function fetchRadar(){
   )].sort().join(' ');
   const displayed=movements.filter(m=>filters[m.line?.product]).length;
   document.getElementById('debugBadge').innerHTML=
-    `<b>${displayed}/${ids.length} located</b> (S: ${sLines||'—'})`;
+    `<b>${displayed}/${ids.length} located</b> (S: ${esc(sLines||'—')})`;
 
   updateVehicles(movements);
 }
@@ -636,7 +648,7 @@ async function loadAll(){
       const cors=location.protocol==='file:';
       board.innerHTML=cors
         ?`<div class="state-box" style="color:var(--red)">CORS-Fehler.<br><small>Starte: <code>python3 -m http.server 8080</code></small></div>`
-        :`<div class="state-box" style="color:var(--red)">${e.message}</div>`;
+        :`<div class="state-box" style="color:var(--red)">${esc(e.message)}</div>`;
     }
   }
   await fetchRadar();
@@ -651,7 +663,7 @@ async function loadStation(id,name){
   document.getElementById('board').innerHTML='<div class="state-box"><div class="spinner"></div>Lade…</div>';
   clearRoute();
   try{
-    const r=await fetch(`${API}/stops/${id}`);
+    const r=await fetch(`${API}/stops/${encodeURIComponent(id)}`);
     const s=await r.json();
     if(s.location) setStationMarker(s.location.latitude,s.location.longitude,name);
   }catch{}
